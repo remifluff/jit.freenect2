@@ -89,8 +89,8 @@ t_jit_err jit_freenect2_init(void) {
     object_addattr_parse(attr, "label", _jit_sym_symbol, 0, "\"Minimum Depth\"");
     jit_class_addattr(s_jit_freenect2_class, attr);
     
-    attr = (t_jit_object *)jit_object_new(_jit_sym_jit_attr_offset, "output_rgb", _jit_sym_long, attrflags, (method)NULL, (method)NULL, calcoffset(t_jit_freenect2, output_rgb));
-    object_addattr_parse(attr, "label", _jit_sym_symbol, 0, "\"Output RGB\"");
+    attr = (t_jit_object *)jit_object_new(_jit_sym_jit_attr_offset, "output_color", _jit_sym_long, attrflags, (method)NULL, (method)NULL, calcoffset(t_jit_freenect2, output_rgb));
+    object_addattr_parse(attr, "label", _jit_sym_symbol, 0, "\"Output Color\"");
     object_addattr_parse(attr, "style", _jit_sym_symbol, 0, "onoff");
     jit_class_addattr(s_jit_freenect2_class, attr);
 

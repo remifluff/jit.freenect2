@@ -76,9 +76,9 @@
         <digest>Set pointcloud minimum depth</digest>
         <description>Set pointcloud minimum depth in meters (default=0.5)</description>
     </attribute>
-    <attribute name='output_rgb' get='1' set='1' type='int' size='1' >
-        <digest>Output RGB</digest>
-        <description>Register and output RGB frames (default=0)</description>
+    <attribute name='output_color' get='1' set='1' type='int' size='1' >
+        <digest>Output color</digest>
+        <description>Register and output color frames (default=0)</description>
     </attribute>
 </attributelist>
 
