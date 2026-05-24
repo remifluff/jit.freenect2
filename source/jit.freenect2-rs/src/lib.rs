@@ -287,7 +287,7 @@ extern "C" {
 /// One-time Jitter class registration; called from ext_main.
 #[no_mangle]
 pub unsafe extern "C" fn jit_freenect2_init() -> i64 {
-    let attrflags: i64 = 0x00001200; /* JIT_ATTR_GET_DEFER_LOW | JIT_ATTR_SET_USURP_LOW */
+    let attrflags: i64 = 0x08040000; /* JIT_ATTR_GET_DEFER_LOW (0x00040000) | JIT_ATTR_SET_USURP_LOW (0x08000000) */
 
     S_JIT_CLASS = jb_jit_class_new(
         cstr!("jit_freenect2_rs"),

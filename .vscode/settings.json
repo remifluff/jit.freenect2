@@ -1,0 +1,10 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "nm": true,
+    "otool": true,
+    "cp": true,
+    "install_name_tool": true,
+    "codesign": true,
+    "xattr": true
+  }
+}

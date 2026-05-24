@@ -44,9 +44,17 @@ struct KinectImpl {
     Freenect2        ctx;
     Freenect2Device* device;
     Registration*    registration;
-    Frame            undistorted;   /* 512 × 424 × 4 bytes */
-    Frame            registered;    /* 512 × 424 × 4 bytes */
-    Frame            bigdepth;      /* 1924 × 1082 × 4 bytes (filter border) */
+    Frame            undistorted;      /* 512 × 424 × 4 bytes */
+    Frame            registered;       /* 512 × 424 × 4 bytes */
+    /* bigdepth_raw is the backing allocation for bigdepth.data.
+       It is 64 bytes larger than the frame data so that bigdepth.data
+       has 64 bytes of valid memory before it.  The SIMD-vectorised
+       filter-write loop inside libfreenect2::RegistrationImpl::apply()
+       performs backward 16-byte NEON loads that can reach up to 12 bytes
+       before bigdepth.data; without this padding those loads underflow
+       the malloc region and trigger an EXC_BAD_ACCESS (SIGSEGV). */
+    unsigned char*   bigdepth_raw;     /* raw allocation: 64-byte pad + frame data */
+    Frame            bigdepth;         /* 1924 × 1082 × 4 bytes (filter border) */
     CallbackListener listener;
     FrameMap         frames;
     bool             is_open;
@@ -57,10 +65,15 @@ struct KinectImpl {
         , registration(nullptr)
         , undistorted(512, 424, 4)
         , registered(512, 424, 4)
-        , bigdepth(1924, 1082, 4)
+        , bigdepth_raw(new unsigned char[1924 * 1082 * 4 + 64]())
+        , bigdepth(1924, 1082, 4, bigdepth_raw + 64)
         , is_open(false)
         , frames_held(false)
     {}
+
+    ~KinectImpl() {
+        delete[] bigdepth_raw;
+    }
 };
 
 /* -----------------------------------------------------------------------
