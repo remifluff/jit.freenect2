@@ -166,48 +166,75 @@ extern "C" {
 }
 
 /* -----------------------------------------------------------------------
-   FFI: jitter_bridge.cpp
+   FFI: Jitter predefined symbol globals  (JIT_EX_DATA t_symbol* — jit.symbols.h)
    ----------------------------------------------------------------------- */
 extern "C" {
-    /* symbols */
-    fn jb_gensym(name: *const c_char) -> *mut c_void;
-    fn jb_jit_symbol_unique() -> *mut c_void;
-    fn jb_sym_jit_mop() -> *mut c_void;
-    fn jb_sym_jit_matrix() -> *mut c_void;
-    fn jb_sym_nothing() -> *mut c_void;
-    fn jb_sym_name() -> *mut c_void;
-    fn jb_sym_char_() -> *mut c_void;
-    fn jb_sym_float32() -> *mut c_void;
-    fn jb_sym_long_() -> *mut c_void;
-    fn jb_sym_mindim() -> *mut c_void;
-    fn jb_sym_maxdim() -> *mut c_void;
-    fn jb_sym_minplanecount() -> *mut c_void;
-    fn jb_sym_maxplanecount() -> *mut c_void;
-    fn jb_sym_types() -> *mut c_void;
-    fn jb_sym_outputmode() -> *mut c_void;
-    fn jb_sym_planecount() -> *mut c_void;
-    fn jb_sym_type() -> *mut c_void;
-    fn jb_sym_dim() -> *mut c_void;
-    /* Jitter class */
-    fn jb_jit_class_new(name: *const c_char,
-                        new_fn: *mut c_void,
-                        free_fn: *mut c_void,
-                        size: i64) -> *mut c_void;
-    fn jb_jit_class_register(c: *mut c_void);
+    static _jit_sym_jit_mop:       *mut c_void;
+    static _jit_sym_nothing:       *mut c_void;
+    static _jit_sym_name:          *mut c_void;
+    static _jit_sym_char:          *mut c_void;
+    static _jit_sym_float32:       *mut c_void;
+    static _jit_sym_mindim:        *mut c_void;
+    static _jit_sym_maxdim:        *mut c_void;
+    static _jit_sym_minplanecount: *mut c_void;
+    static _jit_sym_maxplanecount: *mut c_void;
+    static _jit_sym_types:         *mut c_void;
+    static _jit_sym_outputmode:    *mut c_void;
+    static _jit_sym_planecount:    *mut c_void;
+    static _jit_sym_type:          *mut c_void;
+    static _jit_sym_dim:           *mut c_void;
+}
+
+/* -----------------------------------------------------------------------
+   FFI: direct Max/Jitter API
+   ----------------------------------------------------------------------- */
+extern "C" {
+    fn gensym(name: *const c_char) -> *mut c_void;
+    fn jit_symbol_unique() -> *mut c_void;
+    fn jit_class_register(c: *mut c_void);
+    fn jit_class_addattr(c: *mut c_void, attr: *mut c_void);
+    fn jit_class_addadornment(c: *mut c_void, adornment: *mut c_void);
+    fn jit_class_findbyname(sym: *mut c_void) -> *mut c_void;
+    fn jit_mop_output_nolink(mop: *mut c_void, idx: i64);
+    fn jit_object_free(obj: *mut c_void);
+    fn jit_object_alloc(jit_class: *mut c_void) -> *mut c_void;
+    fn jit_attr_setlong(obj: *mut c_void, sym: *mut c_void, val: i64);
+    fn jit_attr_setlong_array(obj: *mut c_void, sym: *mut c_void, count: i64, vals: *mut i64);
+    fn jit_attr_setsym(obj: *mut c_void, sym: *mut c_void, val_sym: *mut c_void);
+    fn jit_attr_getsym(obj: *mut c_void, sym: *mut c_void) -> *mut c_void;
+    fn max_jit_class_obex_setup(c: *mut c_void, obex_offset: i64);
+    fn max_jit_class_mop_wrap(max_c: *mut c_void, jit_c: *mut c_void, flags: i64);
+    fn max_jit_class_wrap_standard(max_c: *mut c_void, jit_c: *mut c_void, flags: i64);
+    fn max_jit_object_alloc(max_class: *mut c_void, jit_classname_sym: *mut c_void) -> *mut c_void;
+    fn max_jit_object_free(x: *mut c_void);
+    fn max_jit_mop_setup_simple(x: *mut c_void, jit_ob: *mut c_void, argc: i64, argv: *mut c_void);
+    fn max_jit_attr_args(x: *mut c_void, argc: i16, argv: *mut c_void);
+    fn max_jit_mop_free(x: *mut c_void);
+    fn max_jit_obex_jitob_get(x: *mut c_void) -> *mut c_void;
+    fn max_jit_obex_adornment_get(x: *mut c_void, sym: *mut c_void) -> *mut c_void;
+    fn max_jit_mop_getoutput(x: *mut c_void, idx: i64) -> *mut c_void;
+    fn max_jit_mop_io_getoutlet(mop_io: *mut c_void) -> *mut c_void;
+    fn max_jit_mop_outputmatrix(x: *mut c_void);
+    fn qelem_new(owner: *mut c_void, fn_: *mut c_void) -> *mut c_void;
+    fn qelem_free(qelem: *mut c_void);
+    fn qelem_set(qelem: *mut c_void);
+    fn outlet_anything(outlet: *mut c_void, sel_sym: *mut c_void, argc: i16, argv: *mut c_void);
+    fn atom_setsym(atom: *mut c_void, sym: *mut c_void);
+    fn atom_getsym(atom: *const c_void) -> *mut c_void;
+    fn atom_getfloat(atom: *const c_void) -> c_float;
+}
+
+/* -----------------------------------------------------------------------
+   FFI: jitter_bridge.cpp — variadic / multi-step C++ wrappers
+   ----------------------------------------------------------------------- */
+extern "C" {
+    fn jb_jit_class_new(name: *const c_char, new_fn: *mut c_void,
+                        free_fn: *mut c_void, size: i64) -> *mut c_void;
     fn jb_jit_class_addmethod_cant(c: *mut c_void, fn_: *mut c_void, name: *const c_char);
     fn jb_jit_class_addmethod_no_args(c: *mut c_void, fn_: *mut c_void, name: *const c_char);
-    fn jb_jit_class_addattr(c: *mut c_void, attr: *mut c_void);
-    fn jb_jit_class_addadornment(c: *mut c_void, adornment: *mut c_void);
-    fn jb_jit_class_findbyname(sym: *mut c_void) -> *mut c_void;
-    /* Jitter MOP */
     fn jb_jit_mop_new(n_inputs: i64, n_outputs: i64) -> *mut c_void;
-    fn jb_jit_mop_output_nolink(mop: *mut c_void, idx: i64);
-    /* Jitter object ops */
     fn jb_jit_object_new_0(classname_sym: *mut c_void) -> *mut c_void;
     fn jb_jit_object_new_with_sym(classname: *const c_char, sym_arg: *mut c_void) -> *mut c_void;
-    fn jb_jit_object_free(obj: *mut c_void);
-    fn jb_jit_object_alloc(jit_class: *mut c_void) -> *mut c_void;
-    /* Jitter method calls */
     fn jb_jit_object_method_getindex(obj: *mut c_void, idx: i64) -> *mut c_void;
     fn jb_jit_object_method_getoutput(mop: *mut c_void, idx: i64) -> *mut c_void;
     fn jb_jit_object_method_getinputlist(mop: *mut c_void) -> *mut c_void;
@@ -216,67 +243,27 @@ extern "C" {
     fn jb_jit_object_method_getinfo(mat: *mut c_void, info_ptr: *mut c_void);
     fn jb_jit_object_method_getdata(mat: *mut c_void, data_out: *mut *mut c_void);
     fn jb_jit_object_method_lock(mat: *mut c_void, val: i64) -> i64;
-    fn jb_jit_call_matrix_calc(jit_ob: *mut c_void,
-                                inputs: *mut c_void,
+    fn jb_jit_call_matrix_calc(jit_ob: *mut c_void, inputs: *mut c_void,
                                 outputs: *mut c_void) -> i64;
     fn jb_jit_object_method_jit_matrix(obj: *mut c_void, argc: i64, argv: *mut c_void);
-    fn jb_max_jit_obex_adornment_get(x: *mut c_void, sym: *mut c_void) -> *mut c_void;
-    /* Jitter attrs */
-    fn jb_jit_attr_setlong(obj: *mut c_void, sym: *mut c_void, val: i64);
-    fn jb_jit_attr_setlong_array(obj: *mut c_void, sym: *mut c_void,
-                                  count: i64, vals: *mut i64);
-    fn jb_jit_attr_setsym(obj: *mut c_void, sym: *mut c_void, val_sym: *mut c_void);
-    fn jb_jit_attr_getsym(obj: *mut c_void, sym: *mut c_void) -> *mut c_void;
-    /* Jitter attr create */
-    fn jb_jit_attr_offset_new_long(name: *const c_char, flags: i64, offset: i64)
-        -> *mut c_void;
+    fn jb_jit_attr_offset_new_long(name: *const c_char, flags: i64, offset: i64) -> *mut c_void;
     fn jb_jit_attr_offset_new_float32(name: *const c_char, flags: i64,
                                        setter: *mut c_void, offset: i64) -> *mut c_void;
     fn jb_object_addattr_parse(attr: *mut c_void, attrname: *const c_char,
                                 parsestr: *const c_char);
-    /* Max class */
     fn jb_max_class_new(name: *const c_char, new_fn: *mut c_void,
                         free_fn: *mut c_void, size: i64) -> *mut c_void;
     fn jb_max_class_addmethod(c: *mut c_void, fn_: *mut c_void, name: *const c_char);
     fn jb_max_class_addmethod_usurp_low(c: *mut c_void, fn_: *mut c_void, name: *const c_char);
     fn jb_max_class_addmethod_cant(c: *mut c_void, fn_: *mut c_void, name: *const c_char);
     fn jb_max_class_register_box(c: *mut c_void);
-    /* Max class MOP/obex */
-    fn jb_max_jit_class_obex_setup(c: *mut c_void, obex_offset: i64);
-    fn jb_max_jit_class_mop_wrap(max_c: *mut c_void, jit_c: *mut c_void, flags: i64);
-    fn jb_max_jit_class_wrap_standard(max_c: *mut c_void, jit_c: *mut c_void, flags: i64);
-    /* Max class attrs */
     fn jb_max_class_attr_long(c: *mut c_void, name: *const c_char, offset: i64,
                                style: *const c_char, label: *const c_char);
     fn jb_max_class_attr_sym(c: *mut c_void, name: *const c_char, offset: i64,
                               label: *const c_char, setter: *mut c_void);
-    /* Max object */
-    fn jb_max_jit_object_alloc(max_class: *mut c_void, jit_classname_sym: *mut c_void)
-        -> *mut c_void;
-    fn jb_max_jit_object_free(x: *mut c_void);
-    fn jb_max_jit_mop_setup_simple(x: *mut c_void, jit_ob: *mut c_void,
-                                    argc: i64, argv: *mut c_void);
-    fn jb_max_jit_attr_args(x: *mut c_void, argc: i64, argv: *mut c_void);
-    fn jb_max_jit_mop_free(x: *mut c_void);
-    fn jb_max_jit_obex_jitob_get(x: *mut c_void) -> *mut c_void;
-    fn jb_max_jit_mop_getoutput(x: *mut c_void, idx: i64) -> *mut c_void;
-    fn jb_max_jit_mop_io_getoutlet(mop_io: *mut c_void) -> *mut c_void;
-    fn jb_max_jit_mop_outputmatrix(x: *mut c_void);
-    /* Qelem */
-    fn jb_qelem_new(owner: *mut c_void, fn_: *mut c_void) -> *mut c_void;
-    fn jb_qelem_free(qelem: *mut c_void);
-    fn jb_qelem_set(qelem: *mut c_void);
-    /* Outlet */
-    fn jb_outlet_anything(outlet: *mut c_void, sel_sym: *mut c_void,
-                           argc: i64, argv: *mut c_void);
-    /* Atoms */
-    fn jb_atom_setsym(atom: *mut c_void, sym: *mut c_void);
-    fn jb_atom_getsym(atom: *const c_void) -> *mut c_void;
-    /* Errors */
     fn jb_object_error(obj: *mut c_void, msg: *const c_char);
     fn jb_jit_error_code(obj: *mut c_void, err: i64);
     fn jb_post(msg: *const c_char);
-    /* Assist */
     fn jb_assist_outlet(dst: *mut c_char, output_texture: c_int, arg: i64);
 }
 
@@ -298,7 +285,7 @@ pub unsafe extern "C" fn jit_freenect2_init() -> i64 {
 
     /* MOP: 0 inputs, 6 outputs */
     let mop = jb_jit_mop_new(0, 6);
-    jb_jit_class_addadornment(S_JIT_CLASS, mop);
+    jit_class_addadornment(S_JIT_CLASS, mop);
 
     /* Methods */
     jb_jit_class_addmethod_cant(S_JIT_CLASS,
@@ -313,7 +300,7 @@ pub unsafe extern "C" fn jit_freenect2_init() -> i64 {
 
     /* Unlink all 6 outputs so we control type/dim independently */
     for i in 1i64..=6 {
-        jb_jit_mop_output_nolink(mop, i);
+        jit_mop_output_nolink(mop, i);
     }
 
     /* Configure output constraints */
@@ -325,14 +312,14 @@ pub unsafe extern "C" fn jit_freenect2_init() -> i64 {
                      mindim: *mut i64, maxdim: *mut i64,
                      force_char: bool| {
         let out = jb_jit_object_method_getoutput(mop, idx);
-        jb_jit_attr_setlong(out, jb_sym_minplanecount(), min_pc);
-        jb_jit_attr_setlong(out, jb_sym_maxplanecount(), max_pc);
-        jb_jit_attr_setlong_array(out, jb_sym_mindim(), 2, mindim);
-        jb_jit_attr_setlong_array(out, jb_sym_maxdim(), 2, maxdim);
+        jit_attr_setlong(out, _jit_sym_minplanecount, min_pc);
+        jit_attr_setlong(out, _jit_sym_maxplanecount, max_pc);
+        jit_attr_setlong_array(out, _jit_sym_mindim, 2, mindim);
+        jit_attr_setlong_array(out, _jit_sym_maxdim, 2, maxdim);
         if force_char {
-            jb_jit_attr_setlong(out, jb_sym_types(), 0); /* char only */
+            jit_attr_setlong(out, _jit_sym_types, 0); /* char only */
         }
-        jb_jit_attr_setlong(out, jb_sym_outputmode(), 2);
+        jit_attr_setlong(out, _jit_sym_outputmode, 2);
     };
 
     /* output 1: color 1920×1080 char 4-plane */
@@ -357,7 +344,7 @@ pub unsafe extern "C" fn jit_freenect2_init() -> i64 {
     jb_object_addattr_parse(attr, cstr!("label"), cstr!("\"Depth Processor\""));
     jb_object_addattr_parse(attr, cstr!("style"), cstr!("enumindex"));
     jb_object_addattr_parse(attr, cstr!("enumvals"), cstr!("CPU OpenGL OpenCL"));
-    jb_jit_class_addattr(S_JIT_CLASS, attr);
+    jit_class_addattr(S_JIT_CLASS, attr);
 
     /* max_depth: float32, custom setter */
     let attr = jb_jit_attr_offset_new_float32(
@@ -365,7 +352,7 @@ pub unsafe extern "C" fn jit_freenect2_init() -> i64 {
         jit_freenect2_max_depth_set as usize as *mut c_void,
         offset_of!(TJitFreenect2, max_depth) as i64);
     jb_object_addattr_parse(attr, cstr!("label"), cstr!("\"Maximum Depth\""));
-    jb_jit_class_addattr(S_JIT_CLASS, attr);
+    jit_class_addattr(S_JIT_CLASS, attr);
 
     /* min_depth: float32, custom setter */
     let attr = jb_jit_attr_offset_new_float32(
@@ -373,7 +360,7 @@ pub unsafe extern "C" fn jit_freenect2_init() -> i64 {
         jit_freenect2_min_depth_set as usize as *mut c_void,
         offset_of!(TJitFreenect2, min_depth) as i64);
     jb_object_addattr_parse(attr, cstr!("label"), cstr!("\"Minimum Depth\""));
-    jb_jit_class_addattr(S_JIT_CLASS, attr);
+    jit_class_addattr(S_JIT_CLASS, attr);
 
     /* output_color: long, onoff — maps to field output_rgb */
     let attr = jb_jit_attr_offset_new_long(
@@ -381,15 +368,15 @@ pub unsafe extern "C" fn jit_freenect2_init() -> i64 {
         offset_of!(TJitFreenect2, output_rgb) as i64);
     jb_object_addattr_parse(attr, cstr!("label"), cstr!("\"Output Color\""));
     jb_object_addattr_parse(attr, cstr!("style"), cstr!("onoff"));
-    jb_jit_class_addattr(S_JIT_CLASS, attr);
+    jit_class_addattr(S_JIT_CLASS, attr);
 
-    jb_jit_class_register(S_JIT_CLASS);
+    jit_class_register(S_JIT_CLASS);
     JIT_ERR_NONE
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn jit_freenect2_new() -> *mut TJitFreenect2 {
-    let x = jb_jit_object_alloc(S_JIT_CLASS) as *mut TJitFreenect2;
+    let x = jit_object_alloc(S_JIT_CLASS) as *mut TJitFreenect2;
     if x.is_null() { return std::ptr::null_mut(); }
 
     (*x).depth_processor = 1; /* OpenGL default */
@@ -450,11 +437,7 @@ pub unsafe extern "C" fn jit_freenect2_max_depth_set(
     x: *mut TJitFreenect2, _attr: *mut c_void, argc: i64, argv: *const c_void,
 ) -> i64 {
     if !x.is_null() && argc > 0 && !argv.is_null() {
-        /* read float from atom via bridge */
-        let val = {
-            extern "C" { fn jb_atom_getfloat(atom: *const c_void) -> c_float; }
-            jb_atom_getfloat(argv)
-        };
+        let val = atom_getfloat(argv);
         (*x).max_depth = val;
         if !(*x).kinect.is_null() {
             kinect_set_depth_config((*x).kinect, (*x).min_depth, val);
@@ -468,10 +451,7 @@ pub unsafe extern "C" fn jit_freenect2_min_depth_set(
     x: *mut TJitFreenect2, _attr: *mut c_void, argc: i64, argv: *const c_void,
 ) -> i64 {
     if !x.is_null() && argc > 0 && !argv.is_null() {
-        let val = {
-            extern "C" { fn jb_atom_getfloat(atom: *const c_void) -> c_float; }
-            jb_atom_getfloat(argv)
-        };
+        let val = atom_getfloat(argv);
         (*x).min_depth = val;
         if !(*x).kinect.is_null() {
             kinect_set_depth_config((*x).kinect, val, (*x).max_depth);
@@ -495,60 +475,35 @@ pub unsafe extern "C" fn jit_freenect2_matrix_calc(
         return JIT_ERR_NONE;
     }
 
-    /* Retrieve six output matrix handles from the outputs list (0-indexed) */
-    let color_mat       = jb_jit_object_method_getindex(outputs, 0);
-    let ir_mat          = jb_jit_object_method_getindex(outputs, 1);
-    let depth_mat       = jb_jit_object_method_getindex(outputs, 2);
-    let undistorted_mat = jb_jit_object_method_getindex(outputs, 3);
-    let registered_mat  = jb_jit_object_method_getindex(outputs, 4);
-    let bigdepth_mat    = jb_jit_object_method_getindex(outputs, 5);
-
-    if color_mat.is_null() || ir_mat.is_null() || depth_mat.is_null()
-        || undistorted_mat.is_null() || registered_mat.is_null() || bigdepth_mat.is_null()
-    {
+    /* Retrieve six output matrix handles (0-indexed) */
+    let mats: [*mut c_void; 6] = [
+        jb_jit_object_method_getindex(outputs, 0),
+        jb_jit_object_method_getindex(outputs, 1),
+        jb_jit_object_method_getindex(outputs, 2),
+        jb_jit_object_method_getindex(outputs, 3),
+        jb_jit_object_method_getindex(outputs, 4),
+        jb_jit_object_method_getindex(outputs, 5),
+    ];
+    if mats.iter().any(|m| m.is_null()) {
         return JIT_ERR_INVALID_PTR;
     }
 
     /* Lock all matrices */
-    let lock_color       = jb_jit_object_method_lock(color_mat,       1);
-    let lock_ir          = jb_jit_object_method_lock(ir_mat,          1);
-    let lock_depth       = jb_jit_object_method_lock(depth_mat,       1);
-    let lock_undist      = jb_jit_object_method_lock(undistorted_mat, 1);
-    let lock_reg         = jb_jit_object_method_lock(registered_mat,  1);
-    let lock_bigdepth    = jb_jit_object_method_lock(bigdepth_mat,    1);
+    let locks: [i64; 6] = mats.map(|m| jb_jit_object_method_lock(m, 1));
 
-    /* Retrieve matrix info (dimcount etc.) for each matrix */
-    let mut color_info   = TJitMatrixInfo { size:0, type_sym:std::ptr::null_mut(),
-        flags:0, dimcount:0, dim:[0i64;32], dimstride:[0i64;32], planecount:0 };
-    let mut ir_info      = color_info; let mut depth_info    = color_info;
-    let mut undist_info  = color_info; let mut reg_info      = color_info;
-    let mut bigdepth_info= color_info;
-
-    jb_jit_object_method_getinfo(color_mat,       &mut color_info    as *mut _ as *mut c_void);
-    jb_jit_object_method_getinfo(ir_mat,          &mut ir_info       as *mut _ as *mut c_void);
-    jb_jit_object_method_getinfo(depth_mat,       &mut depth_info    as *mut _ as *mut c_void);
-    jb_jit_object_method_getinfo(undistorted_mat, &mut undist_info   as *mut _ as *mut c_void);
-    jb_jit_object_method_getinfo(registered_mat,  &mut reg_info      as *mut _ as *mut c_void);
-    jb_jit_object_method_getinfo(bigdepth_mat,    &mut bigdepth_info as *mut _ as *mut c_void);
-
-    /* Retrieve data pointers */
-    let mut color_bp:    *mut c_void = std::ptr::null_mut();
-    let mut ir_bp:       *mut c_void = std::ptr::null_mut();
-    let mut depth_bp:    *mut c_void = std::ptr::null_mut();
-    let mut undist_bp:   *mut c_void = std::ptr::null_mut();
-    let mut reg_bp:      *mut c_void = std::ptr::null_mut();
-    let mut bigdepth_bp: *mut c_void = std::ptr::null_mut();
-
-    jb_jit_object_method_getdata(color_mat,       &mut color_bp);
-    jb_jit_object_method_getdata(ir_mat,          &mut ir_bp);
-    jb_jit_object_method_getdata(depth_mat,       &mut depth_bp);
-    jb_jit_object_method_getdata(undistorted_mat, &mut undist_bp);
-    jb_jit_object_method_getdata(registered_mat,  &mut reg_bp);
-    jb_jit_object_method_getdata(bigdepth_mat,    &mut bigdepth_bp);
+    /* Retrieve matrix info and data pointers */
+    let zero_info = TJitMatrixInfo { size: 0, type_sym: std::ptr::null_mut(),
+        flags: 0, dimcount: 0, dim: [0i64; 32], dimstride: [0i64; 32], planecount: 0 };
+    let mut infos = [zero_info; 6];
+    let mut bps   = [std::ptr::null_mut::<c_void>(); 6];
+    for i in 0..6 {
+        jb_jit_object_method_getinfo(mats[i], &mut infos[i] as *mut _ as *mut c_void);
+        jb_jit_object_method_getdata(mats[i], &mut bps[i]);
+    }
 
     let mut err = JIT_ERR_NONE;
 
-    if color_bp.is_null() {
+    if bps[0].is_null() {
         err = JIT_ERR_INVALID_OUTPUT;
     } else {
         /* Get frames from Kinect (blocks up to 1 s) */
@@ -556,40 +511,39 @@ pub unsafe extern "C" fn jit_freenect2_matrix_calc(
         if kinect_wait_frames((*x).kinect, &mut ptrs) == 0 {
             kinect_register_frames((*x).kinect, &mut ptrs, (*x).output_rgb as c_int);
 
-            if !ptrs.color_data.is_null() && color_info.dimcount >= 1 {
-                copy_color_data(ptrs.color_data, color_bp as *mut u8);
+            if !ptrs.color_data.is_null() && infos[0].dimcount >= 1 {
+                copy_bgrx_to_argb_mirrored(ptrs.color_data, bps[0] as *mut u8,
+                                           COLOR_WIDTH as usize, COLOR_HEIGHT as usize);
             }
-            if !ptrs.ir_data.is_null() && ir_info.dimcount >= 1 {
-                copy_float_data_mirrored(ptrs.ir_data, ir_bp as *mut c_float,
+            if !ptrs.ir_data.is_null() && infos[1].dimcount >= 1 {
+                copy_float_data_mirrored(ptrs.ir_data, bps[1] as *mut c_float,
                                          DEPTH_WIDTH as usize, DEPTH_HEIGHT as usize);
             }
-            if !ptrs.depth_data.is_null() && depth_info.dimcount >= 1 {
-                copy_float_data_mirrored(ptrs.depth_data, depth_bp as *mut c_float,
+            if !ptrs.depth_data.is_null() && infos[2].dimcount >= 1 {
+                copy_float_data_mirrored(ptrs.depth_data, bps[2] as *mut c_float,
                                          DEPTH_WIDTH as usize, DEPTH_HEIGHT as usize);
             }
-            if !ptrs.undistorted_data.is_null() && undist_info.dimcount >= 1 {
-                copy_float_data_mirrored(ptrs.undistorted_data, undist_bp as *mut c_float,
+            if !ptrs.undistorted_data.is_null() && infos[3].dimcount >= 1 {
+                copy_float_data_mirrored(ptrs.undistorted_data, bps[3] as *mut c_float,
                                          DEPTH_WIDTH as usize, DEPTH_HEIGHT as usize);
             }
             if (*x).output_rgb != 0 {
-                if !ptrs.registered_data.is_null() && reg_info.dimcount >= 1 && !reg_bp.is_null() {
-                    copy_registered_data(ptrs.registered_data, reg_bp as *mut u8);
+                if !ptrs.registered_data.is_null() && infos[4].dimcount >= 1 && !bps[4].is_null() {
+                    copy_bgrx_to_argb_mirrored(ptrs.registered_data, bps[4] as *mut u8,
+                                               DEPTH_WIDTH as usize, DEPTH_HEIGHT as usize);
                 }
-                if !ptrs.bigdepth_data.is_null() && bigdepth_info.dimcount >= 1 && !bigdepth_bp.is_null() {
-                    copy_bigdepth_data(ptrs.bigdepth_data, bigdepth_bp as *mut c_float);
+                if !ptrs.bigdepth_data.is_null() && infos[5].dimcount >= 1 && !bps[5].is_null() {
+                    copy_bigdepth_data(ptrs.bigdepth_data, bps[5] as *mut c_float);
                 }
             }
             kinect_release_frames((*x).kinect);
         }
     }
 
-    /* Unlock all matrices */
-    jb_jit_object_method_lock(bigdepth_mat,    lock_bigdepth);
-    jb_jit_object_method_lock(registered_mat,  lock_reg);
-    jb_jit_object_method_lock(undistorted_mat, lock_undist);
-    jb_jit_object_method_lock(depth_mat,       lock_depth);
-    jb_jit_object_method_lock(ir_mat,          lock_ir);
-    jb_jit_object_method_lock(color_mat,       lock_color);
+    /* Unlock all matrices (reverse order) */
+    for i in (0..6).rev() {
+        jb_jit_object_method_lock(mats[i], locks[i]);
+    }
 
     err
 }
@@ -598,17 +552,13 @@ pub unsafe extern "C" fn jit_freenect2_matrix_calc(
    Pixel copy helpers
    ----------------------------------------------------------------------- */
 
-/// BGRX → ARGB with horizontal mirror.
-/// `src` is BGRX 1920×1080; `dst` is ARGB 1920×1080.
-unsafe fn copy_color_data(src: *const u8, dst: *mut u8) {
-    let w = COLOR_WIDTH as usize;
-    let h = COLOR_HEIGHT as usize;
+/// BGRX → ARGB with horizontal mirror, arbitrary dimensions.
+unsafe fn copy_bgrx_to_argb_mirrored(src: *const u8, dst: *mut u8, w: usize, h: usize) {
     let mut op = dst;
     for y in 0..h {
         for xi in 0..w {
-            let fx = w - 1 - xi;
-            let p  = src.add((y * w + fx) * 4);
-            *op.add(0) = *p.add(3); /* A  (X byte from Kinect) */
+            let p = src.add((y * w + (w - 1 - xi)) * 4);
+            *op.add(0) = *p.add(3); /* A (X byte from Kinect) */
             *op.add(1) = *p.add(2); /* R */
             *op.add(2) = *p.add(1); /* G */
             *op.add(3) = *p.add(0); /* B */
@@ -626,24 +576,6 @@ unsafe fn copy_float_data_mirrored(src: *const c_float, dst: *mut c_float,
             let fx = w - 1 - xi;
             *op = *src.add(y * w + fx);
             op = op.add(1);
-        }
-    }
-}
-
-/// BGRX → ARGB with horizontal mirror for the registered (512×424) plane.
-unsafe fn copy_registered_data(src: *const u8, dst: *mut u8) {
-    let w = DEPTH_WIDTH as usize;
-    let h = DEPTH_HEIGHT as usize;
-    let mut op = dst;
-    for y in 0..h {
-        for xi in 0..w {
-            let fx = w - 1 - xi;
-            let p  = src.add((y * w + fx) * 4);
-            *op.add(0) = *p.add(3);
-            *op.add(1) = *p.add(2);
-            *op.add(2) = *p.add(1);
-            *op.add(3) = *p.add(0);
-            op = op.add(4);
         }
     }
 }
@@ -685,11 +617,11 @@ pub unsafe extern "C" fn ext_main(_r: *mut c_void) {
     );
 
     let obex_offset = offset_of!(TMaxJitFreenect2, obex) as i64;
-    jb_max_jit_class_obex_setup(S_MAX_CLASS, obex_offset);
+    max_jit_class_obex_setup(S_MAX_CLASS, obex_offset);
 
-    let jit_class = jb_jit_class_findbyname(jb_gensym(cstr!("jit_freenect2_rs")));
-    jb_max_jit_class_mop_wrap(S_MAX_CLASS, jit_class, MAX_JIT_MOP_FLAGS_OWN_ADAPT);
-    jb_max_jit_class_wrap_standard(S_MAX_CLASS, jit_class, 0);
+    let jit_class = jit_class_findbyname(gensym(cstr!("jit_freenect2_rs")));
+    max_jit_class_mop_wrap(S_MAX_CLASS, jit_class, MAX_JIT_MOP_FLAGS_OWN_ADAPT);
+    max_jit_class_wrap_standard(S_MAX_CLASS, jit_class, 0);
 
     /* Methods */
     jb_max_class_addmethod_usurp_low(S_MAX_CLASS,
@@ -729,19 +661,19 @@ pub unsafe extern "C" fn ext_main(_r: *mut c_void) {
 pub unsafe extern "C" fn max_jit_freenect2_new(
     _s: *mut c_void, argc: i64, argv: *mut c_void,
 ) -> *mut TMaxJitFreenect2 {
-    let x = jb_max_jit_object_alloc(S_MAX_CLASS, jb_gensym(cstr!("jit_freenect2_rs")))
+    let x = max_jit_object_alloc(S_MAX_CLASS, gensym(cstr!("jit_freenect2_rs")))
         as *mut TMaxJitFreenect2;
     if x.is_null() { return std::ptr::null_mut(); }
 
-    let jit_ob = jb_jit_object_new_0(jb_gensym(cstr!("jit_freenect2_rs")));
+    let jit_ob = jb_jit_object_new_0(gensym(cstr!("jit_freenect2_rs")));
     if jit_ob.is_null() {
         jb_object_error(x as *mut c_void, cstr!("jit.freenect2: could not allocate object"));
-        jb_max_jit_object_free(x as *mut c_void);
+        max_jit_object_free(x as *mut c_void);
         return std::ptr::null_mut();
     }
 
-    jb_max_jit_mop_setup_simple(x as *mut c_void, jit_ob, argc, argv);
-    jb_max_jit_attr_args(x as *mut c_void, argc, argv);
+    max_jit_mop_setup_simple(x as *mut c_void, jit_ob, argc, argv);
+    max_jit_attr_args(x as *mut c_void, argc as i16, argv);
 
     /* Set output matrix types/dimensions in the Max MOP wrappers (1-indexed) */
     let mut color_dim: [i64; 2] = [COLOR_WIDTH, COLOR_HEIGHT];
@@ -751,31 +683,31 @@ pub unsafe extern "C" fn max_jit_freenect2_new(
                         type_sym: *mut c_void,
                         dims: &mut [i64; 2],
                         planecount: i64| {
-        let out = jb_max_jit_mop_getoutput(x as *mut c_void, idx);
+        let out = max_jit_mop_getoutput(x as *mut c_void, idx);
         if !out.is_null() {
-            jb_jit_attr_setsym(out, jb_sym_type(), type_sym);
-            jb_jit_attr_setlong_array(out, jb_sym_dim(), 2, dims.as_mut_ptr());
-            jb_jit_attr_setlong(out, jb_sym_planecount(), planecount);
+            jit_attr_setsym(out, _jit_sym_type, type_sym);
+            jit_attr_setlong_array(out, _jit_sym_dim, 2, dims.as_mut_ptr());
+            jit_attr_setlong(out, _jit_sym_planecount, planecount);
         }
     };
 
-    setup_output(1, jb_sym_char_(),   &mut color_dim, 4); /* color        */
-    setup_output(2, jb_sym_float32(), &mut depth_dim, 1); /* ir           */
-    setup_output(3, jb_sym_float32(), &mut depth_dim, 1); /* depth        */
-    setup_output(4, jb_sym_float32(), &mut depth_dim, 1); /* undistorted  */
-    setup_output(5, jb_sym_char_(),   &mut depth_dim, 4); /* registered   */
-    setup_output(6, jb_sym_float32(), &mut color_dim, 1); /* bigdepth     */
+    setup_output(1, _jit_sym_char,    &mut color_dim, 4); /* color        */
+    setup_output(2, _jit_sym_float32, &mut depth_dim, 1); /* ir           */
+    setup_output(3, _jit_sym_float32, &mut depth_dim, 1); /* depth        */
+    setup_output(4, _jit_sym_float32, &mut depth_dim, 1); /* undistorted  */
+    setup_output(5, _jit_sym_char,    &mut depth_dim, 4); /* registered   */
+    setup_output(6, _jit_sym_float32, &mut color_dim, 1); /* bigdepth     */
 
     /* Initialise texture-mode fields */
     (*x).output_texture = 0;
-    (*x).drawto         = jb_sym_nothing();
+    (*x).drawto         = _jit_sym_nothing;
     for i in 0..6 {
         (*x).tex_objects[i] = std::ptr::null_mut();
-        (*x).tex_names[i]   = jb_jit_symbol_unique();
+        (*x).tex_names[i]   = jit_symbol_unique();
     }
 
     /* Queue element for thread-safe output */
-    (*x).qelem = jb_qelem_new(
+    (*x).qelem = qelem_new(
         x as *mut c_void,
         max_jit_freenect2_qfn as usize as *mut c_void,
     );
@@ -791,24 +723,24 @@ pub unsafe extern "C" fn max_jit_freenect2_free(x: *mut TMaxJitFreenect2) {
     if x.is_null() { return; }
 
     if !(*x).qelem.is_null() {
-        jb_qelem_free((*x).qelem);
+        qelem_free((*x).qelem);
         (*x).qelem = std::ptr::null_mut();
     }
 
     for i in 0..6 {
         if !(*x).tex_objects[i].is_null() {
-            jb_jit_object_free((*x).tex_objects[i]);
+            jit_object_free((*x).tex_objects[i]);
             (*x).tex_objects[i] = std::ptr::null_mut();
         }
     }
 
-    jb_max_jit_mop_free(x as *mut c_void);
+    max_jit_mop_free(x as *mut c_void);
 
-    let jit_ob = jb_max_jit_obex_jitob_get(x as *mut c_void);
+    let jit_ob = max_jit_obex_jitob_get(x as *mut c_void);
     if !jit_ob.is_null() {
-        jb_jit_object_free(jit_ob);
+        jit_object_free(jit_ob);
     }
-    jb_max_jit_object_free(x as *mut c_void);
+    max_jit_object_free(x as *mut c_void);
 }
 
 /* -----------------------------------------------------------------------
@@ -818,10 +750,10 @@ pub unsafe extern "C" fn max_jit_freenect2_free(x: *mut TMaxJitFreenect2) {
 pub unsafe extern "C" fn max_jit_freenect2_outputmatrix(x: *mut TMaxJitFreenect2) {
     if x.is_null() { return; }
 
-    let mop = jb_max_jit_obex_adornment_get(x as *mut c_void, jb_sym_jit_mop());
+    let mop = max_jit_obex_adornment_get(x as *mut c_void, _jit_sym_jit_mop);
     if mop.is_null() { return; }
 
-    let jit_ob = jb_max_jit_obex_jitob_get(x as *mut c_void);
+    let jit_ob = max_jit_obex_jitob_get(x as *mut c_void);
     if jit_ob.is_null() { return; }
 
     let inputs  = jb_jit_object_method_getinputlist(mop);
@@ -834,26 +766,26 @@ pub unsafe extern "C" fn max_jit_freenect2_outputmatrix(x: *mut TMaxJitFreenect2
 
     if (*x).output_texture == 0 {
         /* Matrix mode: standard MOP output */
-        jb_max_jit_mop_outputmatrix(x as *mut c_void);
+        max_jit_mop_outputmatrix(x as *mut c_void);
     } else {
         /* Texture mode: upload each matrix to a jit_gl_texture and output its name */
         for i in 1i64..=6 {
-            let mop_io = jb_max_jit_mop_getoutput(x as *mut c_void, i);
+            let mop_io = max_jit_mop_getoutput(x as *mut c_void, i);
             if mop_io.is_null() { continue; }
 
-            let outlet = jb_max_jit_mop_io_getoutlet(mop_io);
+            let outlet = max_jit_mop_io_getoutlet(mop_io);
             if outlet.is_null() { continue; }
 
             let matrix = jb_jit_object_method_getmatrix(mop_io);
             if matrix.is_null() { continue; }
 
-            let mat_name = jb_jit_attr_getsym(matrix, jb_sym_name());
-            if mat_name.is_null() || mat_name == jb_sym_nothing() { continue; }
+            let mat_name = jit_attr_getsym(matrix, _jit_sym_name);
+            if mat_name.is_null() || mat_name == _jit_sym_nothing { continue; }
 
             /* Lazily create the GL texture object bound to the drawto context */
             let idx = (i - 1) as usize;
             if (*x).tex_objects[idx].is_null() {
-                if (*x).drawto == jb_sym_nothing() {
+                if (*x).drawto == _jit_sym_nothing {
                     jb_object_error(x as *mut c_void,
                         cstr!("jit.freenect2: set @drawto to a GL context name to use @output_texture 1"));
                     return;
@@ -861,25 +793,25 @@ pub unsafe extern "C" fn max_jit_freenect2_outputmatrix(x: *mut TMaxJitFreenect2
                 (*x).tex_objects[idx] = jb_jit_object_new_with_sym(
                     cstr!("jit_gl_texture"), (*x).drawto);
                 if !(*x).tex_objects[idx].is_null() {
-                    jb_jit_attr_setsym((*x).tex_objects[idx], jb_sym_name(),
-                                       (*x).tex_names[idx]);
+                    jit_attr_setsym((*x).tex_objects[idx], _jit_sym_name,
+                                    (*x).tex_names[idx]);
                 }
             }
 
             if !(*x).tex_objects[idx].is_null() {
                 /* Send the matrix name to the texture object */
                 let mut mat_atom = Atom::new();
-                jb_atom_setsym(&mut mat_atom as *mut _ as *mut c_void, mat_name);
+                atom_setsym(&mut mat_atom as *mut _ as *mut c_void, mat_name);
                 jb_jit_object_method_jit_matrix(
                     (*x).tex_objects[idx], 1, &mut mat_atom as *mut _ as *mut c_void);
 
                 /* Output the texture name symbol through the outlet */
                 let mut tex_atom = Atom::new();
-                jb_atom_setsym(&mut tex_atom as *mut _ as *mut c_void, (*x).tex_names[idx]);
-                jb_outlet_anything(
+                atom_setsym(&mut tex_atom as *mut _ as *mut c_void, (*x).tex_names[idx]);
+                outlet_anything(
                     outlet,
-                    jb_gensym(cstr!("jit_gl_texture")),
-                    1,
+                    gensym(cstr!("jit_gl_texture")),
+                    1i16,
                     &mut tex_atom as *mut _ as *mut c_void,
                 );
             }
@@ -902,7 +834,7 @@ pub unsafe extern "C" fn max_jit_freenect2_qfn(x: *mut TMaxJitFreenect2) {
 pub unsafe extern "C" fn max_jit_freenect2_trigger_output(user: *mut c_void) {
     let x = user as *mut TMaxJitFreenect2;
     if !x.is_null() && !(*x).qelem.is_null() {
-        jb_qelem_set((*x).qelem);
+        qelem_set((*x).qelem);
     }
 }
 
@@ -910,7 +842,7 @@ pub unsafe extern "C" fn max_jit_freenect2_trigger_output(user: *mut c_void) {
 #[no_mangle]
 pub unsafe extern "C" fn max_jit_freenect2_setup_callback(x: *mut TMaxJitFreenect2) {
     if x.is_null() { return; }
-    let jit_ob = jb_max_jit_obex_jitob_get(x as *mut c_void);
+    let jit_ob = max_jit_obex_jitob_get(x as *mut c_void);
     if jit_ob.is_null() { return; }
     let kinect = jit_freenect2_get_kinect_wrapper(jit_ob as *mut TJitFreenect2);
     if !kinect.is_null() {
@@ -924,7 +856,7 @@ pub unsafe extern "C" fn max_jit_freenect2_setup_callback(x: *mut TMaxJitFreenec
 #[no_mangle]
 pub unsafe extern "C" fn max_jit_freenect2_stop(x: *mut TMaxJitFreenect2) {
     if x.is_null() { return; }
-    let jit_ob = jb_max_jit_obex_jitob_get(x as *mut c_void);
+    let jit_ob = max_jit_obex_jitob_get(x as *mut c_void);
     if jit_ob.is_null() { return; }
     let kinect = jit_freenect2_get_kinect_wrapper(jit_ob as *mut TJitFreenect2);
     if !kinect.is_null() {
@@ -951,10 +883,10 @@ pub unsafe extern "C" fn max_jit_freenect2_drawto_set(
 ) -> i64 {
     if x.is_null() { return MAX_ERR_NONE; }
     if argc > 0 && !argv.is_null() {
-        (*x).drawto = jb_atom_getsym(argv);
+        (*x).drawto = atom_getsym(argv);
         for i in 0..6 {
             if !(*x).tex_objects[i].is_null() {
-                jb_jit_object_free((*x).tex_objects[i]);
+                jit_object_free((*x).tex_objects[i]);
                 (*x).tex_objects[i] = std::ptr::null_mut();
             }
         }

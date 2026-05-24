@@ -5,6 +5,7 @@
     "cp": true,
     "install_name_tool": true,
     "codesign": true,
-    "xattr": true
+    "xattr": true,
+    "awk": true
   }
 }
