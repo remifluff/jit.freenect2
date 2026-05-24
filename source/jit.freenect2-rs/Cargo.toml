@@ -1,0 +1,17 @@
+[package]
+name = "jit-freenect2"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "jit_freenect2"
+crate-type = ["cdylib"]
+
+[dependencies]
+# median (Cycling74/median) requires _common_symbols from Max's flat namespace,
+# which Max does not export — causes dlopen failure. All Max/Jitter API calls are
+# handled by jitter_bridge.cpp instead.
+memoffset = "0.9"
+
+[build-dependencies]
+cc = "1.0"

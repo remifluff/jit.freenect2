@@ -29,10 +29,13 @@ t_jit_err        jit_freenect2_matrix_calc(t_jit_freenect2 *x, void *inputs, voi
 void            jit_freenect2_open(t_jit_freenect2 *x);
 void            jit_freenect2_close(t_jit_freenect2 *x);
 kinect_wrapper * jit_freenect2_get_kinect_wrapper(t_jit_freenect2 *x);
-void            jit_freenect2_copy_depthdata(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop);
-void            jit_freenect2_copy_rgbdata(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop);
-void            jit_freenect2_copy_raw_colordata(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop);
-void            jit_freenect2_copy_raw_irdata(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop);void            jit_freenect2_copy_depthcolor_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop);t_jit_err jit_freenect2_max_depth_set(t_jit_freenect2 *x, void *attr, long ac, t_atom *av);
+void            jit_freenect2_copy_color_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop);
+void            jit_freenect2_copy_ir_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop);
+void            jit_freenect2_copy_depth_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop);
+void            jit_freenect2_copy_undistorted_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop);
+void            jit_freenect2_copy_registered_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop);
+void            jit_freenect2_copy_bigdepth_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop);
+t_jit_err jit_freenect2_max_depth_set(t_jit_freenect2 *x, void *attr, long ac, t_atom *av);
 t_jit_err jit_freenect2_min_depth_set(t_jit_freenect2 *x, void *attr, long ac, t_atom *av);
 END_USING_C_LINKAGE
 
@@ -46,14 +49,13 @@ t_jit_err jit_freenect2_init(void) {
     long attrflags = JIT_ATTR_GET_DEFER_LOW | JIT_ATTR_SET_USURP_LOW;
     t_jit_object *attr;
     t_jit_object *mop;
-    t_jit_object *output2;
-    t_jit_object *output3;
-    t_jit_object *output4;
-    t_jit_object *output5;
+    t_jit_object *output1, *output2, *output3, *output4, *output5, *output6;
+    t_atom_long color_dim[2] = {COLOR_WIDTH, COLOR_HEIGHT};
+    t_atom_long depth_dim[2] = {DEPTH_WIDTH, DEPTH_HEIGHT};
 
     s_jit_freenect2_class = jit_class_new("jit_freenect2", (method)jit_freenect2_new, (method)jit_freenect2_free, sizeof(t_jit_freenect2), 0);
 
-    mop = (t_jit_object *)jit_object_new(_jit_sym_jit_mop, 0, 5);
+    mop = (t_jit_object *)jit_object_new(_jit_sym_jit_mop, 0, 6);
     jit_class_addadornment(s_jit_freenect2_class, mop);
 
     jit_class_addmethod(s_jit_freenect2_class, (method)jit_freenect2_matrix_calc, "matrix_calc", A_CANT, 0);
@@ -62,48 +64,61 @@ t_jit_err jit_freenect2_init(void) {
     jit_class_addmethod(s_jit_freenect2_class, (method)jit_freenect2_get_kinect_wrapper, "get_kinect_wrapper", A_CANT, 0);
 
     jit_mop_output_nolink(mop, 1);
+    jit_mop_output_nolink(mop, 2);
     jit_mop_output_nolink(mop, 3);
     jit_mop_output_nolink(mop, 4);
     jit_mop_output_nolink(mop, 5);
+    jit_mop_output_nolink(mop, 6);
 
-    // output2: registered color (512x424, char, 4-plane)
+    // output1: raw color (1920x1080, char, 4-plane ARGB)
+    output1 = (t_jit_object *)jit_object_method(mop, _jit_sym_getoutput, 1);
+    jit_attr_setlong(output1, _jit_sym_minplanecount, 4);
+    jit_attr_setlong(output1, _jit_sym_maxplanecount, 4);
+    jit_attr_setlong_array(output1, _jit_sym_mindim, 2, color_dim);
+    jit_attr_setlong_array(output1, _jit_sym_maxdim, 2, color_dim);
+    jit_attr_setlong(output1, _jit_sym_types, 0);
+    jit_attr_setlong(output1, _jit_sym_outputmode, 2);
+
+    // output2: IR (512x424, float32, 1-plane, range 0-65535)
     output2 = (t_jit_object *)jit_object_method(mop, _jit_sym_getoutput, 2);
-    jit_attr_setlong(output2, _jit_sym_minplanecount, 4);
-    jit_attr_setlong(output2, _jit_sym_maxplanecount, 4);
-    t_atom_long dim[2] = {DEPTH_WIDTH, DEPTH_HEIGHT};
-    jit_attr_setlong_array(output2, _jit_sym_mindim, 2, dim);
-    jit_attr_setlong_array(output2, _jit_sym_maxdim, 2, dim);
-    jit_attr_setlong(output2, _jit_sym_types, 0);
+    jit_attr_setlong(output2, _jit_sym_minplanecount, 1);
+    jit_attr_setlong(output2, _jit_sym_maxplanecount, 1);
+    jit_attr_setlong_array(output2, _jit_sym_mindim, 2, depth_dim);
+    jit_attr_setlong_array(output2, _jit_sym_maxdim, 2, depth_dim);
     jit_attr_setlong(output2, _jit_sym_outputmode, 2);
 
-    // output3: raw color (1920x1080, char, 4-plane)
+    // output3: raw depth (512x424, float32, 1-plane, mm)
     output3 = (t_jit_object *)jit_object_method(mop, _jit_sym_getoutput, 3);
-    jit_attr_setlong(output3, _jit_sym_minplanecount, 4);
-    jit_attr_setlong(output3, _jit_sym_maxplanecount, 4);
-    t_atom_long rawcolor_dim[2] = {COLOR_WIDTH, COLOR_HEIGHT};
-    jit_attr_setlong_array(output3, _jit_sym_mindim, 2, rawcolor_dim);
-    jit_attr_setlong_array(output3, _jit_sym_maxdim, 2, rawcolor_dim);
-    jit_attr_setlong(output3, _jit_sym_types, 0);
+    jit_attr_setlong(output3, _jit_sym_minplanecount, 1);
+    jit_attr_setlong(output3, _jit_sym_maxplanecount, 1);
+    jit_attr_setlong_array(output3, _jit_sym_mindim, 2, depth_dim);
+    jit_attr_setlong_array(output3, _jit_sym_maxdim, 2, depth_dim);
     jit_attr_setlong(output3, _jit_sym_outputmode, 2);
 
-    // output4: raw IR (512x424, float32, 1-plane)
+    // output4: undistorted depth (512x424, float32, 1-plane, mm)
     output4 = (t_jit_object *)jit_object_method(mop, _jit_sym_getoutput, 4);
     jit_attr_setlong(output4, _jit_sym_minplanecount, 1);
     jit_attr_setlong(output4, _jit_sym_maxplanecount, 1);
-    t_atom_long ir_dim[2] = {DEPTH_WIDTH, DEPTH_HEIGHT};
-    jit_attr_setlong_array(output4, _jit_sym_mindim, 2, ir_dim);
-    jit_attr_setlong_array(output4, _jit_sym_maxdim, 2, ir_dim);
+    jit_attr_setlong_array(output4, _jit_sym_mindim, 2, depth_dim);
+    jit_attr_setlong_array(output4, _jit_sym_maxdim, 2, depth_dim);
     jit_attr_setlong(output4, _jit_sym_outputmode, 2);
 
-    // output5: depth-composited RGBA (1920x1080, float32, 4-plane)
-    // R/G/B = normalised colour (0-1), A = depth in metres (0 = no reading)
+    // output5: registered color (512x424, char, 4-plane ARGB)
     output5 = (t_jit_object *)jit_object_method(mop, _jit_sym_getoutput, 5);
     jit_attr_setlong(output5, _jit_sym_minplanecount, 4);
     jit_attr_setlong(output5, _jit_sym_maxplanecount, 4);
-    t_atom_long depthcolor_dim[2] = {COLOR_WIDTH, COLOR_HEIGHT};
-    jit_attr_setlong_array(output5, _jit_sym_mindim, 2, depthcolor_dim);
-    jit_attr_setlong_array(output5, _jit_sym_maxdim, 2, depthcolor_dim);
+    jit_attr_setlong_array(output5, _jit_sym_mindim, 2, depth_dim);
+    jit_attr_setlong_array(output5, _jit_sym_maxdim, 2, depth_dim);
+    jit_attr_setlong(output5, _jit_sym_types, 0);
     jit_attr_setlong(output5, _jit_sym_outputmode, 2);
+
+    // output6: bigdepth (1920x1080, float32, 1-plane, mm, 0=no reading)
+    output6 = (t_jit_object *)jit_object_method(mop, _jit_sym_getoutput, 6);
+    jit_attr_setlong(output6, _jit_sym_minplanecount, 1);
+    jit_attr_setlong(output6, _jit_sym_maxplanecount, 1);
+    jit_attr_setlong_array(output6, _jit_sym_mindim, 2, color_dim);
+    jit_attr_setlong_array(output6, _jit_sym_maxdim, 2, color_dim);
+    jit_attr_setlong(output6, _jit_sym_outputmode, 2);
 
     attr = (t_jit_object *)jit_object_new(_jit_sym_jit_attr_offset,
                                           "depth_processor", _jit_sym_long, attrflags,
@@ -193,55 +208,55 @@ void jit_freenect2_close(t_jit_freenect2 *x) {
 
 t_jit_err jit_freenect2_matrix_calc(t_jit_freenect2 *x, void *inputs, void *outputs) {
     t_jit_err err = JIT_ERR_NONE;
-    long rgb_savelock = 0, depth_savelock = 0, rawcolor_savelock = 0, rawir_savelock = 0, depthcolor_savelock = 0;
-    t_jit_matrix_info rgb_minfo, depth_minfo, rawcolor_minfo, rawir_minfo, depthcolor_minfo;
-    char *rgb_bp, *depth_bp, *rawcolor_bp, *rawir_bp, *depthcolor_bp;
-    void *rgb_matrix, *depth_matrix, *rawcolor_matrix, *rawir_matrix, *depthcolor_matrix;
+    long color_savelock=0, ir_savelock=0, depth_savelock=0, undistorted_savelock=0, registered_savelock=0, bigdepth_savelock=0;
+    t_jit_matrix_info color_minfo, ir_minfo, depth_minfo, undistorted_minfo, registered_minfo, bigdepth_minfo;
+    char *color_bp, *ir_bp, *depth_bp, *undistorted_bp, *registered_bp, *bigdepth_bp;
+    void *color_matrix, *ir_matrix, *depth_matrix, *undistorted_matrix, *registered_matrix, *bigdepth_matrix;
 
     if (!x->kinect->isOpen || !x->kinect->hasNewFrames()) {
         return JIT_ERR_NONE;
     }
 
-    depth_matrix    = jit_object_method(outputs, _jit_sym_getindex, 0);
-    rgb_matrix      = jit_object_method(outputs, _jit_sym_getindex, 1);
-    rawcolor_matrix = jit_object_method(outputs, _jit_sym_getindex, 2);
-    rawir_matrix    = jit_object_method(outputs, _jit_sym_getindex, 3);
-    depthcolor_matrix = jit_object_method(outputs, _jit_sym_getindex, 4);
+    color_matrix       = jit_object_method(outputs, _jit_sym_getindex, 0);
+    ir_matrix          = jit_object_method(outputs, _jit_sym_getindex, 1);
+    depth_matrix       = jit_object_method(outputs, _jit_sym_getindex, 2);
+    undistorted_matrix = jit_object_method(outputs, _jit_sym_getindex, 3);
+    registered_matrix  = jit_object_method(outputs, _jit_sym_getindex, 4);
+    bigdepth_matrix    = jit_object_method(outputs, _jit_sym_getindex, 5);
 
-    if (x && depth_matrix && rgb_matrix && rawcolor_matrix && rawir_matrix && depthcolor_matrix) {
-        depth_savelock      = (long)jit_object_method(depth_matrix,      _jit_sym_lock, 1);
-        rgb_savelock        = (long)jit_object_method(rgb_matrix,        _jit_sym_lock, 1);
-        rawcolor_savelock   = (long)jit_object_method(rawcolor_matrix,   _jit_sym_lock, 1);
-        rawir_savelock      = (long)jit_object_method(rawir_matrix,      _jit_sym_lock, 1);
-        depthcolor_savelock = (long)jit_object_method(depthcolor_matrix, _jit_sym_lock, 1);
+    if (x && color_matrix && ir_matrix && depth_matrix && undistorted_matrix && registered_matrix && bigdepth_matrix) {
+        color_savelock       = (long)jit_object_method(color_matrix,       _jit_sym_lock, 1);
+        ir_savelock          = (long)jit_object_method(ir_matrix,          _jit_sym_lock, 1);
+        depth_savelock       = (long)jit_object_method(depth_matrix,       _jit_sym_lock, 1);
+        undistorted_savelock = (long)jit_object_method(undistorted_matrix, _jit_sym_lock, 1);
+        registered_savelock  = (long)jit_object_method(registered_matrix,  _jit_sym_lock, 1);
+        bigdepth_savelock    = (long)jit_object_method(bigdepth_matrix,    _jit_sym_lock, 1);
 
-        jit_object_method(depth_matrix,      _jit_sym_getinfo, &depth_minfo);
-        jit_object_method(rgb_matrix,        _jit_sym_getinfo, &rgb_minfo);
-        jit_object_method(rawcolor_matrix,   _jit_sym_getinfo, &rawcolor_minfo);
-        jit_object_method(rawir_matrix,      _jit_sym_getinfo, &rawir_minfo);
-        jit_object_method(depthcolor_matrix, _jit_sym_getinfo, &depthcolor_minfo);
+        jit_object_method(color_matrix,       _jit_sym_getinfo, &color_minfo);
+        jit_object_method(ir_matrix,          _jit_sym_getinfo, &ir_minfo);
+        jit_object_method(depth_matrix,       _jit_sym_getinfo, &depth_minfo);
+        jit_object_method(undistorted_matrix, _jit_sym_getinfo, &undistorted_minfo);
+        jit_object_method(registered_matrix,  _jit_sym_getinfo, &registered_minfo);
+        jit_object_method(bigdepth_matrix,    _jit_sym_getinfo, &bigdepth_minfo);
 
-        jit_object_method(depth_matrix,      _jit_sym_getdata, &depth_bp);
-        jit_object_method(rgb_matrix,        _jit_sym_getdata, &rgb_bp);
-        jit_object_method(rawcolor_matrix,   _jit_sym_getdata, &rawcolor_bp);
-        jit_object_method(rawir_matrix,      _jit_sym_getdata, &rawir_bp);
-        jit_object_method(depthcolor_matrix, _jit_sym_getdata, &depthcolor_bp);
+        jit_object_method(color_matrix,       _jit_sym_getdata, &color_bp);
+        jit_object_method(ir_matrix,          _jit_sym_getdata, &ir_bp);
+        jit_object_method(depth_matrix,       _jit_sym_getdata, &depth_bp);
+        jit_object_method(undistorted_matrix, _jit_sym_getdata, &undistorted_bp);
+        jit_object_method(registered_matrix,  _jit_sym_getdata, &registered_bp);
+        jit_object_method(bigdepth_matrix,    _jit_sym_getdata, &bigdepth_bp);
 
-        if (!rgb_bp) {
-            err = JIT_ERR_INVALID_INPUT; goto out;
-        }
-        if (!depth_bp) {
-            err = JIT_ERR_INVALID_OUTPUT; goto out;
-        }
+        if (!color_bp) { err = JIT_ERR_INVALID_OUTPUT; goto out; }
 
         x->kinect->getframes();
         x->kinect->registerFrames();
 
-        if (x->output_rgb) { jit_freenect2_copy_rgbdata(x, rgb_minfo.dimcount, &rgb_minfo, rgb_bp); }
-        jit_freenect2_copy_depthdata(x, depth_minfo.dimcount, &depth_minfo, depth_bp);
-        if (rawcolor_bp) { jit_freenect2_copy_raw_colordata(x, rawcolor_minfo.dimcount, &rawcolor_minfo, rawcolor_bp); }
-        if (rawir_bp)    { jit_freenect2_copy_raw_irdata(x, rawir_minfo.dimcount, &rawir_minfo, rawir_bp); }
-        if (depthcolor_bp && x->output_rgb) { jit_freenect2_copy_depthcolor_data(x, depthcolor_minfo.dimcount, &depthcolor_minfo, depthcolor_bp); }
+        jit_freenect2_copy_color_data(x, color_minfo.dimcount, &color_minfo, color_bp);
+        if (ir_bp)          { jit_freenect2_copy_ir_data(x, ir_minfo.dimcount, &ir_minfo, ir_bp); }
+        if (depth_bp)       { jit_freenect2_copy_depth_data(x, depth_minfo.dimcount, &depth_minfo, depth_bp); }
+        if (undistorted_bp) { jit_freenect2_copy_undistorted_data(x, undistorted_minfo.dimcount, &undistorted_minfo, undistorted_bp); }
+        if (registered_bp && x->output_rgb) { jit_freenect2_copy_registered_data(x, registered_minfo.dimcount, &registered_minfo, registered_bp); }
+        if (bigdepth_bp && x->output_rgb)   { jit_freenect2_copy_bigdepth_data(x, bigdepth_minfo.dimcount, &bigdepth_minfo, bigdepth_bp); }
 
         x->kinect->release();
     } else {
@@ -249,194 +264,108 @@ t_jit_err jit_freenect2_matrix_calc(t_jit_freenect2 *x, void *inputs, void *outp
     }
 
  out:
-    jit_object_method(depthcolor_matrix, _jit_sym_lock, depthcolor_savelock);
-    jit_object_method(rawir_matrix,    _jit_sym_lock, rawir_savelock);
-    jit_object_method(rawcolor_matrix, _jit_sym_lock, rawcolor_savelock);
-    jit_object_method(rgb_matrix,      _jit_sym_lock, rgb_savelock);
-    jit_object_method(depth_matrix,    _jit_sym_lock, depth_savelock);
+    jit_object_method(bigdepth_matrix,    _jit_sym_lock, bigdepth_savelock);
+    jit_object_method(registered_matrix,  _jit_sym_lock, registered_savelock);
+    jit_object_method(undistorted_matrix, _jit_sym_lock, undistorted_savelock);
+    jit_object_method(depth_matrix,       _jit_sym_lock, depth_savelock);
+    jit_object_method(ir_matrix,          _jit_sym_lock, ir_savelock);
+    jit_object_method(color_matrix,       _jit_sym_lock, color_savelock);
     return err;
 }
 
-/*********************************RGB************************************************/
-void jit_freenect2_looprgb(t_jit_freenect2 *x, t_jit_op_info *out_opinfo, t_jit_matrix_info *out_minfo, char *bop) {
-    long xPos, yPos;
-
-    // Correctly access the frame data as unsigned char pointer
-    unsigned char *frame_data = (unsigned char *)x->kinect->registered.data;
-
-    out_opinfo->p = bop;
-    unsigned char *op = (unsigned char *)out_opinfo->p;
-    unsigned char *aPos;
-
-    for (yPos = 0; yPos < DEPTH_HEIGHT; yPos++) {
-        for (xPos = 0; xPos < DEPTH_WIDTH; xPos++) {
-            // Flip horizontally
-            long flipped_x = DEPTH_WIDTH - 1 - xPos;
-            unsigned char *source_pixel = frame_data + (yPos * DEPTH_WIDTH + flipped_x) * 4;
-            aPos = source_pixel + 3;
-
-            //TA: alpha
-            *op = *aPos;
-            op++;
-            aPos--;
-            //TA: red
-            *op = *aPos;
-            op++;
-            aPos--;
-            //TA: green
-            *op = *aPos;
-            op++;
-            aPos--;
-            //TA: blue
-            *op = *aPos;
-            op++;
-            aPos--;
-        }
-    }
-}
-
-void jit_freenect2_copy_rgbdata(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop) {
-    t_jit_op_info out_opinfo;
-
-    if (dimcount < 1) {
-        return; // safety
-    }
-
-    //else:
-    jit_freenect2_looprgb(x, &out_opinfo, out_minfo, bop);
-}
-
-/********************************DEPTH***********************************************/
-void jit_freenect2_loopdepth(t_jit_freenect2 *x, t_jit_op_info *out_opinfo, t_jit_matrix_info *out_minfo, char *bop) {
-    int xPos, yPos;
-
-    out_opinfo->p = bop;
-    float *op = (float *)out_opinfo->p;
-
-    float x_coord, y_coord, z_coord;
-
-    for (yPos = 0; yPos < DEPTH_HEIGHT; yPos++) {
-        for (xPos = DEPTH_WIDTH - 1; xPos >= 0; xPos--) {
-            //AB: get 3D point from depth
-            x->kinect->getPoint3D(yPos, xPos, x_coord, y_coord, z_coord);
-
-            *op = -x_coord;
-            op++;
-
-            *op = -y_coord;
-            op++;
-
-            *op = -z_coord;
-            op++;
-        }
-    }
-}
-
-void jit_freenect2_copy_depthdata(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop) {
-    t_jit_op_info out_opinfo;
-
-    if (dimcount < 1) {
-        return; // safety
-    }
-
-    // else:
-    jit_freenect2_loopdepth(x, &out_opinfo, out_minfo, bop);
-}
-
-/*******************************RAW COLOR********************************************/
-void jit_freenect2_looprawcolor(t_jit_freenect2 *x, t_jit_op_info *out_opinfo, t_jit_matrix_info *out_minfo, char *bop) {
-    long xPos, yPos;
-
-    libfreenect2::Frame *color_frame = x->kinect->frame(Color);
-    if (!color_frame) return;
-
-    unsigned char *frame_data = (unsigned char *)color_frame->data;
-    unsigned char *op = (unsigned char *)bop;
-
-    for (yPos = 0; yPos < COLOR_HEIGHT; yPos++) {
-        for (xPos = 0; xPos < COLOR_WIDTH; xPos++) {
-            // Flip horizontally; source is BGRX, write ARGB
-            long flipped_x = COLOR_WIDTH - 1 - xPos;
-            unsigned char *src = frame_data + (yPos * COLOR_WIDTH + flipped_x) * 4;
-            *op++ = src[3]; // A
-            *op++ = src[2]; // R
-            *op++ = src[1]; // G
-            *op++ = src[0]; // B
-        }
-    }
-}
-
-void jit_freenect2_copy_raw_colordata(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop) {
-    t_jit_op_info out_opinfo;
-
+/**** COLOR: raw 1920x1080, BGRX -> ARGB char ****/
+void jit_freenect2_copy_color_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop) {
     if (dimcount < 1) return;
-
-    jit_freenect2_looprawcolor(x, &out_opinfo, out_minfo, bop);
-}
-
-/*******************************RAW IR***********************************************/
-void jit_freenect2_looprawir(t_jit_freenect2 *x, t_jit_op_info *out_opinfo, t_jit_matrix_info *out_minfo, char *bop) {
-    long xPos, yPos;
-
-    libfreenect2::Frame *ir_frame = x->kinect->frame(Ir);
-    if (!ir_frame) return;
-
-    float *frame_data = (float *)ir_frame->data;
-    float *op = (float *)bop;
-
-    for (yPos = 0; yPos < DEPTH_HEIGHT; yPos++) {
-        for (xPos = 0; xPos < DEPTH_WIDTH; xPos++) {
-            long flipped_x = DEPTH_WIDTH - 1 - xPos;
-            *op++ = frame_data[yPos * DEPTH_WIDTH + flipped_x];
+    libfreenect2::Frame *f = x->kinect->frame(Color);
+    if (!f) return;
+    unsigned char *src = (unsigned char *)f->data;
+    unsigned char *op  = (unsigned char *)bop;
+    for (long y = 0; y < COLOR_HEIGHT; y++) {
+        for (long xi = 0; xi < COLOR_WIDTH; xi++) {
+            long fx = COLOR_WIDTH - 1 - xi;
+            unsigned char *p = src + (y * COLOR_WIDTH + fx) * 4;
+            *op++ = p[3]; // A (X byte)
+            *op++ = p[2]; // R
+            *op++ = p[1]; // G
+            *op++ = p[0]; // B
         }
     }
 }
 
-void jit_freenect2_copy_raw_irdata(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop) {
-    t_jit_op_info out_opinfo;
-
+/**** IR: 512x424, float32, range 0-65535 ****/
+void jit_freenect2_copy_ir_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop) {
     if (dimcount < 1) return;
-
-    jit_freenect2_looprawir(x, &out_opinfo, out_minfo, bop);
+    libfreenect2::Frame *f = x->kinect->frame(Ir);
+    if (!f) return;
+    float *src = (float *)f->data;
+    float *op  = (float *)bop;
+    for (long y = 0; y < DEPTH_HEIGHT; y++) {
+        for (long xi = 0; xi < DEPTH_WIDTH; xi++) {
+            long fx = DEPTH_WIDTH - 1 - xi;
+            *op++ = src[y * DEPTH_WIDTH + fx];
+        }
+    }
 }
 
-/***************************DEPTH-COMPOSITED RGBA***********************************
- * float32 4-plane 1920x1080
- * plane 0 = R (0-1), plane 1 = G (0-1), plane 2 = B (0-1)
- * plane 3 = depth in metres (0.0 = no reading)
- *
- * Source colour: raw BGRX camera frame (1920x1080)
- * Source depth:  bigdepth (filter_map stored in kinect->bigdepth.data).
- *   The real pixel data starts at offset_filter_map = 1920*filter_height_half + filter_width_half
- *   = 1920*1 + 2 = 1922 floats (hardcoded to match registration.cpp constants).
- *   Values are in mm; divide by 1000 to get metres. infinity = no depth.
- ***********************************************************************************/
-void jit_freenect2_copy_depthcolor_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop) {
+/**** RAW DEPTH: 512x424, float32, mm (non-positive/NaN/inf = invalid) ****/
+void jit_freenect2_copy_depth_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop) {
     if (dimcount < 1) return;
+    libfreenect2::Frame *f = x->kinect->frame(Depth);
+    if (!f) return;
+    float *src = (float *)f->data;
+    float *op  = (float *)bop;
+    for (long y = 0; y < DEPTH_HEIGHT; y++) {
+        for (long xi = 0; xi < DEPTH_WIDTH; xi++) {
+            long fx = DEPTH_WIDTH - 1 - xi;
+            *op++ = src[y * DEPTH_WIDTH + fx];
+        }
+    }
+}
 
-    libfreenect2::Frame *color_frame = x->kinect->frame(Color);
-    if (!color_frame) return;
+/**** UNDISTORTED DEPTH: 512x424, float32, mm (from apply() or undistortDepth()) ****/
+void jit_freenect2_copy_undistorted_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop) {
+    if (dimcount < 1) return;
+    float *src = (float *)x->kinect->undistorted.data;
+    float *op  = (float *)bop;
+    for (long y = 0; y < DEPTH_HEIGHT; y++) {
+        for (long xi = 0; xi < DEPTH_WIDTH; xi++) {
+            long fx = DEPTH_WIDTH - 1 - xi;
+            *op++ = src[y * DEPTH_WIDTH + fx];
+        }
+    }
+}
 
-    const int bigdepth_offset = 1922; // 1920 * filter_height_half(1) + filter_width_half(2)
-    unsigned char *color_data  = (unsigned char *)color_frame->data;
-    float         *bd          = (float *)x->kinect->bigdepth.data + bigdepth_offset;
-    float         *op          = (float *)bop;
-    const float    inf         = std::numeric_limits<float>::infinity();
+/**** REGISTERED COLOR: 512x424, BGRX -> ARGB char (from apply(), requires @output_color 1) ****/
+void jit_freenect2_copy_registered_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop) {
+    if (dimcount < 1) return;
+    unsigned char *src = (unsigned char *)x->kinect->registered.data;
+    unsigned char *op  = (unsigned char *)bop;
+    for (long y = 0; y < DEPTH_HEIGHT; y++) {
+        for (long xi = 0; xi < DEPTH_WIDTH; xi++) {
+            long fx = DEPTH_WIDTH - 1 - xi;
+            unsigned char *p = src + (y * DEPTH_WIDTH + fx) * 4;
+            *op++ = p[3]; // A
+            *op++ = p[2]; // R
+            *op++ = p[1]; // G
+            *op++ = p[0]; // B
+        }
+    }
+}
 
-    for (long yPos = 0; yPos < COLOR_HEIGHT; yPos++) {
-        for (long xPos = 0; xPos < COLOR_WIDTH; xPos++) {
-            // Mirror horizontally to match the other outputs
-            long fx = COLOR_WIDTH - 1 - xPos;
-
-            // Colour: source is BGRX bytes, convert to normalised float RGB
-            unsigned char *src = color_data + (yPos * COLOR_WIDTH + fx) * 4;
-            *op++ = src[2] / 255.0f; // R
-            *op++ = src[1] / 255.0f; // G
-            *op++ = src[0] / 255.0f; // B
-
-            // Depth: mm → metres, 0 where no reading
-            float d = bd[yPos * 1920 + fx];
-            *op++ = (d == inf || d <= 0.0f) ? 0.0f : d / 1000.0f;
+/**** BIGDEPTH: 1920x1080, float32, mm, 0=no reading (from apply(), requires @output_color 1)
+ * filter_map stored in bigdepth.data; valid 1920x1080 data begins at
+ * offset_filter_map = 1920*filter_height_half(1) + filter_width_half(2) = 1922 floats. ****/
+void jit_freenect2_copy_bigdepth_data(t_jit_freenect2 *x, long dimcount, t_jit_matrix_info *out_minfo, char *bop) {
+    if (dimcount < 1) return;
+    const int offset = 1922;
+    float *src = (float *)x->kinect->bigdepth.data + offset;
+    float *op  = (float *)bop;
+    const float inf = std::numeric_limits<float>::infinity();
+    for (long y = 0; y < COLOR_HEIGHT; y++) {
+        for (long xi = 0; xi < COLOR_WIDTH; xi++) {
+            long fx = COLOR_WIDTH - 1 - xi;
+            float d = src[y * 1920 + fx];
+            *op++ = (d == inf || d <= 0.0f) ? 0.0f : d;
         }
     }
 }
