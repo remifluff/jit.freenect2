@@ -12,6 +12,7 @@
 
 enum FRAMETYPE {
     Color = libfreenect2::Frame::Color,
+    Ir    = libfreenect2::Frame::Ir,
     Depth = libfreenect2::Frame::Depth
 };
 
@@ -43,6 +44,10 @@ public:
 
     libfreenect2::Frame undistorted = libfreenect2::Frame(512, 424, 4);
     libfreenect2::Frame registered = libfreenect2::Frame(512, 424, 4);
+    // Depth remapped to colour-image space (1924×1082 to satisfy filter_map borders:
+    // filter_height_half=1 → +2 rows, filter_width_half=2 → +4 cols, all stored as float mm).
+    // p_filter_map = data + offset_filter_map (= 1920*1 + 2 = 1922 floats)
+    libfreenect2::Frame bigdepth = libfreenect2::Frame(1924, 1082, 4);
 
     bool open(long depth_pipeline /* 0-CPU, 1-OpenGL, 2-OpenCL */);
     void setMaxDepth(float m);

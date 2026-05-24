@@ -25,7 +25,7 @@ bool CustomFrameListener::onNewFrame(libfreenect2::Frame::Type type, libfreenect
     return result;
 }
 
-kinect_wrapper::kinect_wrapper() : listener(libfreenect2::Frame::Color | libfreenect2::Frame::Depth) {
+kinect_wrapper::kinect_wrapper() : listener(libfreenect2::Frame::Color | libfreenect2::Frame::Ir | libfreenect2::Frame::Depth) {
     device = nullptr;
     pipeline = nullptr;
     config.MaxDepth = 4.5f;
@@ -131,14 +131,20 @@ libfreenect2::Frame * kinect_wrapper::frame(FRAMETYPE type) {
         case Color:
             return frames[libfreenect2::Frame::Color];
 
+        case Ir:
+            return frames[libfreenect2::Frame::Ir];
+
         case Depth:
             return frames[libfreenect2::Frame::Depth];
+
+        default:
+            return nullptr;
     }
 }
 
 void kinect_wrapper::registerFrames() {
     if(*use_rgb){
-        registration->apply(frames[libfreenect2::Frame::Color], frames[libfreenect2::Frame::Depth], &undistorted, &registered);
+        registration->apply(frames[libfreenect2::Frame::Color], frames[libfreenect2::Frame::Depth], &undistorted, &registered, true, &bigdepth);
     }
     else{
         registration->undistortDepth(frames[libfreenect2::Frame::Depth], &undistorted);

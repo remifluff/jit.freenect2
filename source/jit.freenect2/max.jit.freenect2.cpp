@@ -4,6 +4,8 @@
 
 #define DEPTH_WIDTH  512
 #define DEPTH_HEIGHT 424
+#define COLOR_WIDTH  1920
+#define COLOR_HEIGHT 1080
 
 // Max object instance data
 typedef struct _max_jit_freenect2 {
@@ -78,10 +80,30 @@ void * max_jit_freenect2_new(t_symbol *s, long argc, t_atom *argv) {
             jit_attr_setlong_array(output, _jit_sym_dim, 2, depthdim);
             jit_attr_setlong(output, _jit_sym_planecount, 3);
 
-            //TA: set rgb matrix initial attributes
+            //TA: set registered color matrix initial attributes
             output = max_jit_mop_getoutput(x, 2);
             jit_attr_setsym(output, _jit_sym_type, _jit_sym_char);
             jit_attr_setlong_array(output, _jit_sym_dim, 2, rgbdim);
+            jit_attr_setlong(output, _jit_sym_planecount, 4);
+
+            //TA: set raw color matrix initial attributes
+            t_atom_long rawcolordim[2] = { COLOR_WIDTH, COLOR_HEIGHT };
+            output = max_jit_mop_getoutput(x, 3);
+            jit_attr_setsym(output, _jit_sym_type, _jit_sym_char);
+            jit_attr_setlong_array(output, _jit_sym_dim, 2, rawcolordim);
+            jit_attr_setlong(output, _jit_sym_planecount, 4);
+
+            //TA: set raw IR matrix initial attributes
+            output = max_jit_mop_getoutput(x, 4);
+            jit_attr_setsym(output, _jit_sym_type, _jit_sym_float32);
+            jit_attr_setlong_array(output, _jit_sym_dim, 2, depthdim);
+            jit_attr_setlong(output, _jit_sym_planecount, 1);
+
+            //TA: depth-composited RGBA float32 (1920x1080, R/G/B=colour 0-1, A=depth metres)
+            t_atom_long depthcolordim[2] = { COLOR_WIDTH, COLOR_HEIGHT };
+            output = max_jit_mop_getoutput(x, 5);
+            jit_attr_setsym(output, _jit_sym_type, _jit_sym_float32);
+            jit_attr_setlong_array(output, _jit_sym_dim, 2, depthcolordim);
             jit_attr_setlong(output, _jit_sym_planecount, 4);
 
             // Create queue element for thread-safe output
@@ -181,6 +203,18 @@ void max_jit_freenect2_assist(t_max_jit_freenect2 *x, void *b, long msg, long ar
                 break;
 
             case 2:
+                sprintf(s, "(matrix) raw color");
+                break;
+
+            case 3:
+                sprintf(s, "(matrix) raw ir");
+                break;
+
+            case 4:
+                sprintf(s, "(matrix) depth+color rgba float32");
+                break;
+
+            case 5:
                 sprintf(s, "dumpout");
                 break;
         }
