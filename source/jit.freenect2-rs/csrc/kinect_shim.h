@@ -12,11 +12,10 @@ typedef void* KinectHandle;
 /**
  * Pointers to raw frame data returned by kinect_wait_frames / kinect_register_frames.
  *
- * color_data      : BGRX 1920×1080 (4 bytes/pixel)
+ * color_data      : XBGR 1920×1080 (4 bytes/pixel; X=byte0, B=byte1, G=byte2, R=byte3)
  * ir_data         : float32 512×424
  * depth_data      : float32 512×424, millimetres
- * undistorted_data: float32 512×424, millimetres (set after kinect_register_frames)
- * registered_data : BGRX 512×424 (set after kinect_register_frames when use_rgb=1)
+ * registered_data : XBGR 512×424 (set after kinect_register_frames when use_rgb=1)
  * bigdepth_data   : float32 1924×1082; valid 1920×1080 data starts at offset +1922 floats
  *                   (set after kinect_register_frames when use_rgb=1)
  */
@@ -24,7 +23,6 @@ typedef struct KinectFramePtrs {
     const unsigned char* color_data;
     const float*         ir_data;
     const float*         depth_data;
-    const float*         undistorted_data;
     const unsigned char* registered_data;
     const float*         bigdepth_data;
 } KinectFramePtrs;

@@ -211,13 +211,12 @@ void jb_post(const char* msg) {
 void jb_assist_outlet(char* dst, int output_texture, long arg) {
     const char* fmt = output_texture ? "(texture)" : "(matrix)";
     switch (arg) {
-        case 0: snprintf(dst, 512, "%s color 1920x1080 char ARGB",            fmt); break;
-        case 1: snprintf(dst, 512, "%s ir 512x424 float32 0-65535",           fmt); break;
-        case 2: snprintf(dst, 512, "%s depth 512x424 float32 mm",             fmt); break;
-        case 3: snprintf(dst, 512, "%s undistorted 512x424 float32 mm",       fmt); break;
-        case 4: snprintf(dst, 512, "%s registered 512x424 char ARGB",         fmt); break;
-        case 5: snprintf(dst, 512, "%s bigdepth 1920x1080 float32 mm",        fmt); break;
-        case 6: snprintf(dst, 512, "dumpout");                                       break;
+        case 0: snprintf(dst, 512, "%s colour 1920x1080 char ARGB",           fmt); break;
+        case 1: snprintf(dst, 512, "%s bigdepth 1920x1080 float32 mm",        fmt); break;
+        case 2: snprintf(dst, 512, "%s registered 512x424 char ARGB",         fmt); break;
+        case 3: snprintf(dst, 512, "%s ir 512x424 float32 0-65535",           fmt); break;
+        case 4: snprintf(dst, 512, "%s depth 512x424 float32 mm",             fmt); break;
+        case 5: snprintf(dst, 512, "dumpout");                                       break;
         default: dst[0] = '\0'; break;
     }
 }

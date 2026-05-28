@@ -8,13 +8,12 @@
  * The outer Max object (TMaxJitFreenect2) wraps the inner Jitter object
  * (TJitFreenect2) following the standard Jitter MOP pattern.
  *
- * Six outputs (all horizontally mirrored):
- *   0 – color       1920×1080  char    4-plane ARGB
- *   1 – ir          512×424    float32 1-plane 0-65535
- *   2 – depth       512×424    float32 1-plane mm
- *   3 – undistorted 512×424    float32 1-plane mm
- *   4 – registered  512×424    char    4-plane ARGB (requires output_color=1)
- *   5 – bigdepth    1920×1080  float32 1-plane mm  (requires output_color=1)
+ * Five outputs (all horizontally mirrored):
+ *   0 – colour     1920×1080  char    4-plane ARGB
+ *   1 – bigdepth   1920×1080  float32 1-plane mm  (requires output_color=1)
+ *   2 – registered  512×424    char    4-plane ARGB (requires output_color=1)
+ *   3 – ir          512×424    float32 1-plane 0-65535
+ *   4 – depth       512×424    float32 1-plane mm
  */
 
 #![allow(non_snake_case, clippy::missing_safety_doc)]
@@ -81,8 +80,8 @@ pub struct TMaxJitFreenect2 {
     qelem:          *mut c_void,
     output_texture: i64,
     drawto:         *mut c_void, /* t_symbol* */
-    tex_objects:    [*mut c_void; 6],
-    tex_names:      [*mut c_void; 6], /* t_symbol* */
+    tex_objects:    [*mut c_void; 5],
+    tex_names:      [*mut c_void; 5], /* t_symbol* */
 }
 
 /* -----------------------------------------------------------------------
@@ -122,7 +121,6 @@ struct KinectFramePtrs {
     color_data:       *const u8,
     ir_data:          *const c_float,
     depth_data:       *const c_float,
-    undistorted_data: *const c_float,
     registered_data:  *const u8,
     bigdepth_data:    *const c_float,
 }
@@ -132,7 +130,6 @@ impl KinectFramePtrs {
             color_data:       std::ptr::null(),
             ir_data:          std::ptr::null(),
             depth_data:       std::ptr::null(),
-            undistorted_data: std::ptr::null(),
             registered_data:  std::ptr::null(),
             bigdepth_data:    std::ptr::null(),
         }
@@ -221,7 +218,6 @@ extern "C" {
     fn outlet_anything(outlet: *mut c_void, sel_sym: *mut c_void, argc: i16, argv: *mut c_void);
     fn atom_setsym(atom: *mut c_void, sym: *mut c_void);
     fn atom_getsym(atom: *const c_void) -> *mut c_void;
-    fn atom_getfloat(atom: *const c_void) -> c_float;
 }
 
 /* -----------------------------------------------------------------------
@@ -283,8 +279,8 @@ pub unsafe extern "C" fn jit_freenect2_init() -> i64 {
         std::mem::size_of::<TJitFreenect2>() as i64,
     );
 
-    /* MOP: 0 inputs, 6 outputs */
-    let mop = jb_jit_mop_new(0, 6);
+    /* MOP: 0 inputs, 5 outputs */
+    let mop = jb_jit_mop_new(0, 5);
     jit_class_addadornment(S_JIT_CLASS, mop);
 
     /* Methods */
@@ -298,8 +294,8 @@ pub unsafe extern "C" fn jit_freenect2_init() -> i64 {
         jit_freenect2_get_kinect_wrapper as usize as *mut c_void,
         cstr!("get_kinect_wrapper"));
 
-    /* Unlink all 6 outputs so we control type/dim independently */
-    for i in 1i64..=6 {
+    /* Unlink all 5 outputs so we control type/dim independently */
+    for i in 1i64..=5 {
         jit_mop_output_nolink(mop, i);
     }
 
@@ -322,18 +318,16 @@ pub unsafe extern "C" fn jit_freenect2_init() -> i64 {
         jit_attr_setlong(out, _jit_sym_outputmode, 2);
     };
 
-    /* output 1: color 1920×1080 char 4-plane */
+    /* output 1: colour 1920×1080 char 4-plane */
     configure(1, 4, 4, color_dim.as_mut_ptr(), color_dim.as_mut_ptr(), true);
-    /* output 2: ir 512×424 float32 1-plane */
-    configure(2, 1, 1, depth_dim.as_mut_ptr(), depth_dim.as_mut_ptr(), false);
-    /* output 3: depth 512×424 float32 1-plane */
-    configure(3, 1, 1, depth_dim.as_mut_ptr(), depth_dim.as_mut_ptr(), false);
-    /* output 4: undistorted 512×424 float32 1-plane */
+    /* output 2: bigdepth 1920×1080 float32 1-plane */
+    configure(2, 1, 1, color_dim.as_mut_ptr(), color_dim.as_mut_ptr(), false);
+    /* output 3: registered 512×424 char 4-plane */
+    configure(3, 4, 4, depth_dim.as_mut_ptr(), depth_dim.as_mut_ptr(), true);
+    /* output 4: ir 512×424 float32 1-plane */
     configure(4, 1, 1, depth_dim.as_mut_ptr(), depth_dim.as_mut_ptr(), false);
-    /* output 5: registered 512×424 char 4-plane */
-    configure(5, 4, 4, depth_dim.as_mut_ptr(), depth_dim.as_mut_ptr(), true);
-    /* output 6: bigdepth 1920×1080 float32 1-plane */
-    configure(6, 1, 1, color_dim.as_mut_ptr(), color_dim.as_mut_ptr(), false);
+    /* output 5: depth 512×424 float32 1-plane */
+    configure(5, 1, 1, depth_dim.as_mut_ptr(), depth_dim.as_mut_ptr(), false);
 
     /* Attributes */
 
@@ -346,18 +340,18 @@ pub unsafe extern "C" fn jit_freenect2_init() -> i64 {
     jb_object_addattr_parse(attr, cstr!("enumvals"), cstr!("CPU OpenGL OpenCL"));
     jit_class_addattr(S_JIT_CLASS, attr);
 
-    /* max_depth: float32, custom setter */
+    /* max_depth: float32 */
     let attr = jb_jit_attr_offset_new_float32(
         cstr!("max_depth"), attrflags,
-        jit_freenect2_max_depth_set as usize as *mut c_void,
+        std::ptr::null_mut(),
         offset_of!(TJitFreenect2, max_depth) as i64);
     jb_object_addattr_parse(attr, cstr!("label"), cstr!("\"Maximum Depth\""));
     jit_class_addattr(S_JIT_CLASS, attr);
 
-    /* min_depth: float32, custom setter */
+    /* min_depth: float32 */
     let attr = jb_jit_attr_offset_new_float32(
         cstr!("min_depth"), attrflags,
-        jit_freenect2_min_depth_set as usize as *mut c_void,
+        std::ptr::null_mut(),
         offset_of!(TJitFreenect2, min_depth) as i64);
     jb_object_addattr_parse(attr, cstr!("label"), cstr!("\"Minimum Depth\""));
     jit_class_addattr(S_JIT_CLASS, attr);
@@ -429,37 +423,6 @@ pub unsafe extern "C" fn jit_freenect2_get_kinect_wrapper(x: *mut TJitFreenect2)
     (*x).kinect
 }
 
-/* Attribute setters for max_depth and min_depth —
-   invoked by Jitter when the attribute is set from a patcher message. */
-
-#[no_mangle]
-pub unsafe extern "C" fn jit_freenect2_max_depth_set(
-    x: *mut TJitFreenect2, _attr: *mut c_void, argc: i64, argv: *const c_void,
-) -> i64 {
-    if !x.is_null() && argc > 0 && !argv.is_null() {
-        let val = atom_getfloat(argv);
-        (*x).max_depth = val;
-        if !(*x).kinect.is_null() {
-            kinect_set_depth_config((*x).kinect, (*x).min_depth, val);
-        }
-    }
-    JIT_ERR_NONE
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn jit_freenect2_min_depth_set(
-    x: *mut TJitFreenect2, _attr: *mut c_void, argc: i64, argv: *const c_void,
-) -> i64 {
-    if !x.is_null() && argc > 0 && !argv.is_null() {
-        let val = atom_getfloat(argv);
-        (*x).min_depth = val;
-        if !(*x).kinect.is_null() {
-            kinect_set_depth_config((*x).kinect, val, (*x).max_depth);
-        }
-    }
-    JIT_ERR_NONE
-}
-
 /* -----------------------------------------------------------------------
    matrix_calc — called by the MOP each time a bang arrives (via outputmatrix)
    ----------------------------------------------------------------------- */
@@ -475,28 +438,27 @@ pub unsafe extern "C" fn jit_freenect2_matrix_calc(
         return JIT_ERR_NONE;
     }
 
-    /* Retrieve six output matrix handles (0-indexed) */
-    let mats: [*mut c_void; 6] = [
+    /* Retrieve five output matrix handles (0-indexed) */
+    let mats: [*mut c_void; 5] = [
         jb_jit_object_method_getindex(outputs, 0),
         jb_jit_object_method_getindex(outputs, 1),
         jb_jit_object_method_getindex(outputs, 2),
         jb_jit_object_method_getindex(outputs, 3),
         jb_jit_object_method_getindex(outputs, 4),
-        jb_jit_object_method_getindex(outputs, 5),
     ];
     if mats.iter().any(|m| m.is_null()) {
         return JIT_ERR_INVALID_PTR;
     }
 
     /* Lock all matrices */
-    let locks: [i64; 6] = mats.map(|m| jb_jit_object_method_lock(m, 1));
+    let locks: [i64; 5] = mats.map(|m| jb_jit_object_method_lock(m, 1));
 
     /* Retrieve matrix info and data pointers */
     let zero_info = TJitMatrixInfo { size: 0, type_sym: std::ptr::null_mut(),
         flags: 0, dimcount: 0, dim: [0i64; 32], dimstride: [0i64; 32], planecount: 0 };
-    let mut infos = [zero_info; 6];
-    let mut bps   = [std::ptr::null_mut::<c_void>(); 6];
-    for i in 0..6 {
+    let mut infos = [zero_info; 5];
+    let mut bps   = [std::ptr::null_mut::<c_void>(); 5];
+    for i in 0..5 {
         jb_jit_object_method_getinfo(mats[i], &mut infos[i] as *mut _ as *mut c_void);
         jb_jit_object_method_getdata(mats[i], &mut bps[i]);
     }
@@ -509,39 +471,42 @@ pub unsafe extern "C" fn jit_freenect2_matrix_calc(
         /* Get frames from Kinect (blocks up to 1 s) */
         let mut ptrs = KinectFramePtrs::new();
         if kinect_wait_frames((*x).kinect, &mut ptrs) == 0 {
+            /* Apply current depth range config (picks up any attribute changes) */
+            kinect_set_depth_config((*x).kinect, (*x).min_depth, (*x).max_depth);
             kinect_register_frames((*x).kinect, &mut ptrs, (*x).output_rgb as c_int);
 
+            /* outlet 0: colour */
             if !ptrs.color_data.is_null() && infos[0].dimcount >= 1 {
                 copy_bgrx_to_argb_mirrored(ptrs.color_data, bps[0] as *mut u8,
                                            COLOR_WIDTH as usize, COLOR_HEIGHT as usize);
             }
-            if !ptrs.ir_data.is_null() && infos[1].dimcount >= 1 {
-                copy_float_data_mirrored(ptrs.ir_data, bps[1] as *mut c_float,
-                                         DEPTH_WIDTH as usize, DEPTH_HEIGHT as usize);
-            }
-            if !ptrs.depth_data.is_null() && infos[2].dimcount >= 1 {
-                copy_float_data_mirrored(ptrs.depth_data, bps[2] as *mut c_float,
-                                         DEPTH_WIDTH as usize, DEPTH_HEIGHT as usize);
-            }
-            if !ptrs.undistorted_data.is_null() && infos[3].dimcount >= 1 {
-                copy_float_data_mirrored(ptrs.undistorted_data, bps[3] as *mut c_float,
-                                         DEPTH_WIDTH as usize, DEPTH_HEIGHT as usize);
-            }
+            /* outlet 1: bigdepth */
             if (*x).output_rgb != 0 {
-                if !ptrs.registered_data.is_null() && infos[4].dimcount >= 1 && !bps[4].is_null() {
-                    copy_bgrx_to_argb_mirrored(ptrs.registered_data, bps[4] as *mut u8,
+                if !ptrs.bigdepth_data.is_null() && infos[1].dimcount >= 1 && !bps[1].is_null() {
+                    copy_bigdepth_data(ptrs.bigdepth_data, bps[1] as *mut c_float);
+                }
+                /* outlet 2: registered */
+                if !ptrs.registered_data.is_null() && infos[2].dimcount >= 1 && !bps[2].is_null() {
+                    copy_bgrx_to_argb_mirrored(ptrs.registered_data, bps[2] as *mut u8,
                                                DEPTH_WIDTH as usize, DEPTH_HEIGHT as usize);
                 }
-                if !ptrs.bigdepth_data.is_null() && infos[5].dimcount >= 1 && !bps[5].is_null() {
-                    copy_bigdepth_data(ptrs.bigdepth_data, bps[5] as *mut c_float);
-                }
+            }
+            /* outlet 3: ir */
+            if !ptrs.ir_data.is_null() && infos[3].dimcount >= 1 {
+                copy_float_data_mirrored(ptrs.ir_data, bps[3] as *mut c_float,
+                                         DEPTH_WIDTH as usize, DEPTH_HEIGHT as usize);
+            }
+            /* outlet 4: depth */
+            if !ptrs.depth_data.is_null() && infos[4].dimcount >= 1 {
+                copy_float_data_mirrored(ptrs.depth_data, bps[4] as *mut c_float,
+                                         DEPTH_WIDTH as usize, DEPTH_HEIGHT as usize);
             }
             kinect_release_frames((*x).kinect);
         }
     }
 
     /* Unlock all matrices (reverse order) */
-    for i in (0..6).rev() {
+    for i in (0..5).rev() {
         jb_jit_object_method_lock(mats[i], locks[i]);
     }
 
@@ -691,17 +656,16 @@ pub unsafe extern "C" fn max_jit_freenect2_new(
         }
     };
 
-    setup_output(1, _jit_sym_char,    &mut color_dim, 4); /* color        */
-    setup_output(2, _jit_sym_float32, &mut depth_dim, 1); /* ir           */
-    setup_output(3, _jit_sym_float32, &mut depth_dim, 1); /* depth        */
-    setup_output(4, _jit_sym_float32, &mut depth_dim, 1); /* undistorted  */
-    setup_output(5, _jit_sym_char,    &mut depth_dim, 4); /* registered   */
-    setup_output(6, _jit_sym_float32, &mut color_dim, 1); /* bigdepth     */
+    setup_output(1, _jit_sym_char,    &mut color_dim, 4); /* colour      */
+    setup_output(2, _jit_sym_float32, &mut color_dim, 1); /* bigdepth    */
+    setup_output(3, _jit_sym_char,    &mut depth_dim, 4); /* registered  */
+    setup_output(4, _jit_sym_float32, &mut depth_dim, 1); /* ir          */
+    setup_output(5, _jit_sym_float32, &mut depth_dim, 1); /* depth       */
 
     /* Initialise texture-mode fields */
     (*x).output_texture = 0;
     (*x).drawto         = _jit_sym_nothing;
-    for i in 0..6 {
+    for i in 0..5 {
         (*x).tex_objects[i] = std::ptr::null_mut();
         (*x).tex_names[i]   = jit_symbol_unique();
     }
@@ -727,7 +691,7 @@ pub unsafe extern "C" fn max_jit_freenect2_free(x: *mut TMaxJitFreenect2) {
         (*x).qelem = std::ptr::null_mut();
     }
 
-    for i in 0..6 {
+    for i in 0..5 {
         if !(*x).tex_objects[i].is_null() {
             jit_object_free((*x).tex_objects[i]);
             (*x).tex_objects[i] = std::ptr::null_mut();
@@ -769,7 +733,7 @@ pub unsafe extern "C" fn max_jit_freenect2_outputmatrix(x: *mut TMaxJitFreenect2
         max_jit_mop_outputmatrix(x as *mut c_void);
     } else {
         /* Texture mode: upload each matrix to a jit_gl_texture and output its name */
-        for i in 1i64..=6 {
+        for i in 1i64..=5 {
             let mop_io = max_jit_mop_getoutput(x as *mut c_void, i);
             if mop_io.is_null() { continue; }
 
@@ -884,7 +848,7 @@ pub unsafe extern "C" fn max_jit_freenect2_drawto_set(
     if x.is_null() { return MAX_ERR_NONE; }
     if argc > 0 && !argv.is_null() {
         (*x).drawto = atom_getsym(argv);
-        for i in 0..6 {
+        for i in 0..5 {
             if !(*x).tex_objects[i].is_null() {
                 jit_object_free((*x).tex_objects[i]);
                 (*x).tex_objects[i] = std::ptr::null_mut();

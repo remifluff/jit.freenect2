@@ -178,7 +178,6 @@ int kinect_wait_frames(KinectHandle h, KinectFramePtrs* out) {
     out->ir_data          = ir    ? reinterpret_cast<const float*>(ir->data)             : nullptr;
     out->depth_data       = depth ? reinterpret_cast<const float*>(depth->data)          : nullptr;
     /* Filled in by kinect_register_frames: */
-    out->undistorted_data = nullptr;
     out->registered_data  = nullptr;
     out->bigdepth_data    = nullptr;
     return 0;
@@ -202,7 +201,6 @@ void kinect_register_frames(KinectHandle h, KinectFramePtrs* out, int use_rgb) {
     } else {
         impl->registration->undistortDepth(depth, &impl->undistorted);
     }
-    out->undistorted_data = reinterpret_cast<const float*>(impl->undistorted.data);
 }
 
 void kinect_release_frames(KinectHandle h) {
