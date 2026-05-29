@@ -257,10 +257,10 @@
                     "id": "obj-19",
                     "maxclass": "newobj",
                     "numinlets": 1,
-                    "numoutlets": 6,
-                    "outlettype": [ "jit_matrix", "jit_matrix", "jit_matrix", "jit_matrix", "jit_matrix", "" ],
-                    "patching_rect": [ 65.0, 229.0, 384.0, 22.0 ],
-                    "text": "jit.freenect2_rs.mxo"
+                    "numoutlets": 3,
+                    "outlettype": [ "", "", "" ],
+                    "patching_rect": [ 65.0, 229.0, 268.0, 22.0 ],
+                    "text": "jit.k2nect"
                 }
             },
             {

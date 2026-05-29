@@ -9,10 +9,10 @@ args = ["build", "--release"]
 dependencies = ["build"]
 script_runner = "@shell"
 script = '''
-BUNDLE=../../externals/jit.k2nect_rs.mxo
-DEST=$BUNDLE/Contents/MacOS/jit.k2nect_rs
+BUNDLE=../../externals/jit.k2nect.mxo
+DEST=$BUNDLE/Contents/MacOS/jit.k2nect
 cp target/release/libjit_k2nect.dylib "$DEST"
-install_name_tool -id "@loader_path/jit.k2nect_rs" "$DEST"
+install_name_tool -id "@loader_path/jit.k2nect" "$DEST"
 # Ensure Info.plist exists (codesign must bind it)
 if [ ! -f "$BUNDLE/Contents/Info.plist" ]; then
     echo "ERROR: $BUNDLE/Contents/Info.plist missing — bundle structure is broken" >&2
@@ -20,7 +20,7 @@ if [ ! -f "$BUNDLE/Contents/Info.plist" ]; then
 fi
 xattr -cr "$BUNDLE"
 codesign --force -s - "$BUNDLE"
-echo "Installed to jit.k2nect_rs.mxo"
+echo "Installed to jit.k2nect.mxo"
 '''
 
 [tasks.default]

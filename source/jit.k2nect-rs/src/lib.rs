@@ -273,7 +273,7 @@ pub unsafe extern "C" fn jit_k2nect_init() -> i64 {
     let attrflags: i64 = 0x08040000; /* JIT_ATTR_GET_DEFER_LOW (0x00040000) | JIT_ATTR_SET_USURP_LOW (0x08000000) */
 
     S_JIT_CLASS = jb_jit_class_new(
-        cstr!("jit_k2nect_rs"),
+        cstr!("jit_k2nect"),
         jit_k2nect_new as usize as *mut c_void,
         jit_k2nect_free as usize as *mut c_void,
         std::mem::size_of::<TJitK2nect>() as i64,
@@ -575,7 +575,7 @@ pub unsafe extern "C" fn ext_main(_r: *mut c_void) {
 
     /* Create and configure the outer Max class */
     S_MAX_CLASS = jb_max_class_new(
-        cstr!("jit.k2nect_rs"),
+        cstr!("jit.k2nect"),
         max_jit_k2nect_new as usize as *mut c_void,
         max_jit_k2nect_free as usize as *mut c_void,
         std::mem::size_of::<TMaxJitK2nect>() as i64,
@@ -584,7 +584,7 @@ pub unsafe extern "C" fn ext_main(_r: *mut c_void) {
     let obex_offset = offset_of!(TMaxJitK2nect, obex) as i64;
     max_jit_class_obex_setup(S_MAX_CLASS, obex_offset);
 
-    let jit_class = jit_class_findbyname(gensym(cstr!("jit_k2nect_rs")));
+    let jit_class = jit_class_findbyname(gensym(cstr!("jit_k2nect")));
     max_jit_class_mop_wrap(S_MAX_CLASS, jit_class, MAX_JIT_MOP_FLAGS_OWN_ADAPT);
     max_jit_class_wrap_standard(S_MAX_CLASS, jit_class, 0);
 
@@ -626,11 +626,11 @@ pub unsafe extern "C" fn ext_main(_r: *mut c_void) {
 pub unsafe extern "C" fn max_jit_k2nect_new(
     _s: *mut c_void, argc: i64, argv: *mut c_void,
 ) -> *mut TMaxJitK2nect {
-    let x = max_jit_object_alloc(S_MAX_CLASS, gensym(cstr!("jit_k2nect_rs")))
+    let x = max_jit_object_alloc(S_MAX_CLASS, gensym(cstr!("jit_k2nect")))
         as *mut TMaxJitK2nect;
     if x.is_null() { return std::ptr::null_mut(); }
 
-    let jit_ob = jb_jit_object_new_0(gensym(cstr!("jit_k2nect_rs")));
+    let jit_ob = jb_jit_object_new_0(gensym(cstr!("jit_k2nect")));
     if jit_ob.is_null() {
         jb_object_error(x as *mut c_void, cstr!("jit.k2nect: could not allocate object"));
         max_jit_object_free(x as *mut c_void);
