@@ -1,12 +1,12 @@
 {
-    "name" : "jit.freenect2",
+    "name" : "jit.k2nect",
     "description" : "External to provide multi-platform support for the Kinect v2.",
     "author" : "",
     "tags" : [ "jitter", "graphics", "spatialization" ],
-    "homepatcher" : "jit.freenect2.maxhelp",
+    "homepatcher" : "jit.k2nect.maxhelp",
     "filelist" :     {
-        "externals" : ["jit.freenect2.mxo"],
-        "help" : ["jit.freenect2.maxhelp"],
+        "externals" : ["jit.k2nect.mxo"],
+        "help" : ["jit.k2nect.maxhelp"],
         "extras" : []
     },
     "max_version_max" : "none",
@@ -25,5 +25,5 @@
     }
 ,
     "version" : "0.0.1",
-    "website" : "https://github.com/aidanbyrnes/jit.freenect2"
+    "website" : "https://github.com/aidanbyrnes/jit.k2nect"
 }

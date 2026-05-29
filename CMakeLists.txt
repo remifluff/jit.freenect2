@@ -12,11 +12,11 @@ endif()
 
 # Add external
 set(C74_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/externals")
-add_subdirectory(source/jit.freenect2)
+add_subdirectory(source/jit.k2nect)
 
 # Set RPATH
 set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
-set_target_properties(jit.freenect2 PROPERTIES
+set_target_properties(jit.k2nect PROPERTIES
 	INSTALL_RPATH "@loader_path/../../../../support"
 )
 
@@ -33,4 +33,4 @@ set_target_properties(freenect2 PROPERTIES
 )
 
 # Link libraries manually
-target_link_libraries(jit.freenect2 PRIVATE freenect2)
+target_link_libraries(jit.k2nect PRIVATE freenect2)
