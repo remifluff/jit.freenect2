@@ -8,9 +8,11 @@ name = "jit_k2nect"
 crate-type = ["cdylib"]
 
 [dependencies]
-# median (Cycling74/median) requires _common_symbols from Max's flat namespace,
-# which Max does not export — causes dlopen failure. All Max/Jitter API calls are
-# handled by jitter_bridge.cpp instead.
+# NOTE: This crate intentionally does NOT depend on max-sdk-rs / max-sys / median.
+# Jitter externals are loaded by the Jitter subsystem which does not export
+# `_common_symbols`, causing dlopen failures if median (or anything pulling it
+# in via ext_main!) is linked. All Max/Jitter API calls go through
+# jitter_bridge.cpp using raw extern "C" declarations + memoffset for layout.
 memoffset = "0.9"
 
 [build-dependencies]
