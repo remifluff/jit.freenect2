@@ -17,3 +17,8 @@ memoffset = "0.9"
 
 [build-dependencies]
 cc = "1.0"
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = "thin"

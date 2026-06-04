@@ -5,7 +5,17 @@
 #include <libfreenect2/registration.h>
 #include <libfreenect2/packet_pipeline.h>
 
+#include <atomic>
+#include <time.h>
+
 using namespace libfreenect2;
+
+/* Monotonic nanosecond timestamp — used for stale-device detection. */
+static uint64_t now_ns() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+}
 
 /* -----------------------------------------------------------------------
    Custom frame listener: extends SyncMultiFrameListener to fire a user
@@ -20,21 +30,25 @@ public:
     {}
 
     void setCallback(KinectCallback cb, void* user) {
-        cb_   = cb;
-        user_ = user;
+        /* Store user first so the callback never sees a stale user pointer. */
+        user_.store(user, std::memory_order_relaxed);
+        cb_.store(cb,   std::memory_order_release);
     }
 
     bool onNewFrame(Frame::Type type, Frame* frame) override {
         bool ret = SyncMultiFrameListener::onNewFrame(type, frame);
-        if (type == Frame::Depth && cb_) {
-            cb_(user_);
+        if (type == Frame::Depth) {
+            KinectCallback cb = cb_.load(std::memory_order_acquire);
+            if (cb) {
+                cb(user_.load(std::memory_order_relaxed));
+            }
         }
         return ret;
     }
 
 private:
-    KinectCallback cb_;
-    void*          user_;
+    std::atomic<KinectCallback> cb_;
+    std::atomic<void*>          user_;
 };
 
 /* -----------------------------------------------------------------------
@@ -59,6 +73,9 @@ struct KinectImpl {
     FrameMap         frames;
     bool             is_open;
     bool             frames_held;
+    uint64_t         last_frame_ns;    /* monotonic ns of last successful frame set */
+    float            active_min_depth; /* depth config currently applied to device  */
+    float            active_max_depth;
 
     KinectImpl()
         : device(nullptr)
@@ -69,6 +86,9 @@ struct KinectImpl {
         , bigdepth(1924, 1082, 4, bigdepth_raw + 64)
         , is_open(false)
         , frames_held(false)
+        , last_frame_ns(0)
+        , active_min_depth(0.0f)
+        , active_max_depth(0.0f)
     {}
 
     ~KinectImpl() {
@@ -107,7 +127,10 @@ int kinect_open(KinectHandle h, int pipeline_type, float min_depth, float max_de
     }
 
     impl->device = impl->ctx.openDefaultDevice(pipeline);
-    if (!impl->device) return -1;
+    if (!impl->device) {
+        delete pipeline;
+        return -1;
+    }
 
     /* Configure depth range via the public Freenect2Device::setConfiguration API,
        avoiding the need for internal depth_packet_processor.h headers. */
@@ -131,6 +154,9 @@ int kinect_open(KinectHandle h, int pipeline_type, float min_depth, float max_de
         impl->device->getIrCameraParams(),
         impl->device->getColorCameraParams()
     );
+    impl->active_min_depth = min_depth;
+    impl->active_max_depth = max_depth;
+    impl->last_frame_ns    = 0;
     impl->is_open = true;
     return 0;
 }
@@ -138,6 +164,7 @@ int kinect_open(KinectHandle h, int pipeline_type, float min_depth, float max_de
 void kinect_set_depth_config(KinectHandle h, float min_depth, float max_depth) {
     KinectImpl* impl = static_cast<KinectImpl*>(h);
     if (!impl->device) return;
+    if (min_depth == impl->active_min_depth && max_depth == impl->active_max_depth) return;
 
     Freenect2Device::Config config;
     config.MinDepth              = min_depth;
@@ -145,6 +172,8 @@ void kinect_set_depth_config(KinectHandle h, float min_depth, float max_depth) {
     config.EnableBilateralFilter = true;
     config.EnableEdgeAwareFilter = true;
     impl->device->setConfiguration(config);
+    impl->active_min_depth = min_depth;
+    impl->active_max_depth = max_depth;
 }
 
 void kinect_set_callback(KinectHandle h, KinectCallback cb, void* user) {
@@ -168,7 +197,8 @@ int kinect_wait_frames(KinectHandle h, KinectFramePtrs* out) {
     if (!impl->listener.waitForNewFrame(impl->frames, 1000)) {
         return -1; /* timeout */
     }
-    impl->frames_held = true;
+    impl->frames_held  = true;
+    impl->last_frame_ns = now_ns();
 
     Frame* color = impl->frames[Frame::Color];
     Frame* ir    = impl->frames[Frame::Ir];
@@ -208,6 +238,13 @@ void kinect_release_frames(KinectHandle h) {
     if (!impl->frames_held) return;
     impl->listener.release(impl->frames);
     impl->frames_held = false;
+}
+
+int kinect_check_stale(KinectHandle h) {
+    KinectImpl* impl = static_cast<KinectImpl*>(h);
+    if (!impl->is_open || impl->last_frame_ns == 0) return 0;
+    /* 3-second silence → assume device disconnected */
+    return (now_ns() - impl->last_frame_ns) > 3000000000ULL ? 1 : 0;
 }
 
 void kinect_close(KinectHandle h) {

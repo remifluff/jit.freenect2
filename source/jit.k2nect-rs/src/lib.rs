@@ -156,6 +156,7 @@ extern "C" {
                            user: *mut c_void);
     fn kinect_is_open(h: *mut c_void) -> c_int;
     fn kinect_has_new_frames(h: *mut c_void) -> c_int;
+    fn kinect_check_stale(h: *mut c_void) -> c_int;
     fn kinect_wait_frames(h: *mut c_void, out: *mut KinectFramePtrs) -> c_int;
     fn kinect_register_frames(h: *mut c_void, out: *mut KinectFramePtrs, use_rgb: c_int);
     fn kinect_release_frames(h: *mut c_void);
@@ -218,6 +219,7 @@ extern "C" {
     fn outlet_anything(outlet: *mut c_void, sel_sym: *mut c_void, argc: i16, argv: *mut c_void);
     fn atom_setsym(atom: *mut c_void, sym: *mut c_void);
     fn atom_getsym(atom: *const c_void) -> *mut c_void;
+    fn atom_getfloat(atom: *const c_void) -> f64;
 }
 
 /* -----------------------------------------------------------------------
@@ -274,8 +276,8 @@ pub unsafe extern "C" fn jit_k2nect_init() -> i64 {
 
     S_JIT_CLASS = jb_jit_class_new(
         cstr!("jit_k2nect"),
-        jit_k2nect_new as usize as *mut c_void,
-        jit_k2nect_free as usize as *mut c_void,
+        jit_k2nect_new as *const () as usize as *mut c_void,
+        jit_k2nect_free as *const () as usize as *mut c_void,
         std::mem::size_of::<TJitK2nect>() as i64,
     );
 
@@ -285,13 +287,13 @@ pub unsafe extern "C" fn jit_k2nect_init() -> i64 {
 
     /* Methods */
     jb_jit_class_addmethod_cant(S_JIT_CLASS,
-        jit_k2nect_matrix_calc as usize as *mut c_void, cstr!("matrix_calc"));
+        jit_k2nect_matrix_calc as *const () as usize as *mut c_void, cstr!("matrix_calc"));
     jb_jit_class_addmethod_no_args(S_JIT_CLASS,
-        jit_k2nect_open as usize as *mut c_void, cstr!("open"));
+        jit_k2nect_open as *const () as usize as *mut c_void, cstr!("open"));
     jb_jit_class_addmethod_no_args(S_JIT_CLASS,
-        jit_k2nect_close as usize as *mut c_void, cstr!("close"));
+        jit_k2nect_close as *const () as usize as *mut c_void, cstr!("close"));
     jb_jit_class_addmethod_cant(S_JIT_CLASS,
-        jit_k2nect_get_kinect_wrapper as usize as *mut c_void,
+        jit_k2nect_get_kinect_wrapper as *const () as usize as *mut c_void,
         cstr!("get_kinect_wrapper"));
 
     /* Unlink all 5 outputs so we control type/dim independently */
@@ -343,7 +345,7 @@ pub unsafe extern "C" fn jit_k2nect_init() -> i64 {
     /* max_depth: float32 */
     let attr = jb_jit_attr_offset_new_float32(
         cstr!("max_depth"), attrflags,
-        std::ptr::null_mut(),
+        jit_k2nect_max_depth_set as *const () as usize as *mut c_void,
         offset_of!(TJitK2nect, max_depth) as i64);
     jb_object_addattr_parse(attr, cstr!("label"), cstr!("\"Maximum Depth\""));
     jit_class_addattr(S_JIT_CLASS, attr);
@@ -351,7 +353,7 @@ pub unsafe extern "C" fn jit_k2nect_init() -> i64 {
     /* min_depth: float32 */
     let attr = jb_jit_attr_offset_new_float32(
         cstr!("min_depth"), attrflags,
-        std::ptr::null_mut(),
+        jit_k2nect_min_depth_set as *const () as usize as *mut c_void,
         offset_of!(TJitK2nect, min_depth) as i64);
     jb_object_addattr_parse(attr, cstr!("label"), cstr!("\"Minimum Depth\""));
     jit_class_addattr(S_JIT_CLASS, attr);
@@ -390,6 +392,32 @@ pub unsafe extern "C" fn jit_k2nect_free(x: *mut TJitK2nect) {
     }
 }
 
+/// Attribute setter for `min_depth` — writes field and updates device config if open.
+#[no_mangle]
+pub unsafe extern "C" fn jit_k2nect_min_depth_set(
+    x: *mut TJitK2nect, _attr: *mut c_void, argc: i64, argv: *const c_void,
+) -> i64 {
+    if x.is_null() || argc < 1 || argv.is_null() { return JIT_ERR_NONE; }
+    (*x).min_depth = atom_getfloat(argv) as c_float;
+    if !(*x).kinect.is_null() && kinect_is_open((*x).kinect) != 0 {
+        kinect_set_depth_config((*x).kinect, (*x).min_depth, (*x).max_depth);
+    }
+    JIT_ERR_NONE
+}
+
+/// Attribute setter for `max_depth` — writes field and updates device config if open.
+#[no_mangle]
+pub unsafe extern "C" fn jit_k2nect_max_depth_set(
+    x: *mut TJitK2nect, _attr: *mut c_void, argc: i64, argv: *const c_void,
+) -> i64 {
+    if x.is_null() || argc < 1 || argv.is_null() { return JIT_ERR_NONE; }
+    (*x).max_depth = atom_getfloat(argv) as c_float;
+    if !(*x).kinect.is_null() && kinect_is_open((*x).kinect) != 0 {
+        kinect_set_depth_config((*x).kinect, (*x).min_depth, (*x).max_depth);
+    }
+    JIT_ERR_NONE
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn jit_k2nect_open(x: *mut TJitK2nect) {
     if x.is_null() || (*x).kinect.is_null() { return; }
@@ -407,6 +435,7 @@ pub unsafe extern "C" fn jit_k2nect_open(x: *mut TJitK2nect) {
     }
 }
 
+/// `close` message handler.
 #[no_mangle]
 pub unsafe extern "C" fn jit_k2nect_close(x: *mut TJitK2nect) {
     if x.is_null() || (*x).kinect.is_null() { return; }
@@ -431,10 +460,16 @@ pub unsafe extern "C" fn jit_k2nect_matrix_calc(
     x: *mut TJitK2nect, _inputs: *mut c_void, outputs: *mut c_void,
 ) -> i64 {
     if x.is_null() { return JIT_ERR_INVALID_PTR; }
-    if (*x).kinect.is_null()
-        || kinect_is_open((*x).kinect) == 0
-        || kinect_has_new_frames((*x).kinect) == 0
-    {
+    if (*x).kinect.is_null() || kinect_is_open((*x).kinect) == 0 {
+        return JIT_ERR_NONE;
+    }
+    /* Check for disconnect: device open but no frames for >3 s */
+    if kinect_has_new_frames((*x).kinect) == 0 {
+        if kinect_check_stale((*x).kinect) != 0 {
+            kinect_close((*x).kinect);
+            jb_object_error(x as *mut c_void,
+                cstr!("jit.k2nect: device disconnected - send 'open' to reconnect"));
+        }
         return JIT_ERR_NONE;
     }
 
@@ -471,8 +506,6 @@ pub unsafe extern "C" fn jit_k2nect_matrix_calc(
         /* Get frames from Kinect (blocks up to 1 s) */
         let mut ptrs = KinectFramePtrs::new();
         if kinect_wait_frames((*x).kinect, &mut ptrs) == 0 {
-            /* Apply current depth range config (picks up any attribute changes) */
-            kinect_set_depth_config((*x).kinect, (*x).min_depth, (*x).max_depth);
             kinect_register_frames((*x).kinect, &mut ptrs, (*x).output_rgb as c_int);
 
             /* outlet 0: colour */
@@ -576,8 +609,8 @@ pub unsafe extern "C" fn ext_main(_r: *mut c_void) {
     /* Create and configure the outer Max class */
     S_MAX_CLASS = jb_max_class_new(
         cstr!("jit.k2nect"),
-        max_jit_k2nect_new as usize as *mut c_void,
-        max_jit_k2nect_free as usize as *mut c_void,
+        max_jit_k2nect_new as *const () as usize as *mut c_void,
+        max_jit_k2nect_free as *const () as usize as *mut c_void,
         std::mem::size_of::<TMaxJitK2nect>() as i64,
     );
 
@@ -590,15 +623,15 @@ pub unsafe extern "C" fn ext_main(_r: *mut c_void) {
 
     /* Methods */
     jb_max_class_addmethod_usurp_low(S_MAX_CLASS,
-        max_jit_k2nect_outputmatrix as usize as *mut c_void, cstr!("outputmatrix"));
+        max_jit_k2nect_outputmatrix as *const () as usize as *mut c_void, cstr!("outputmatrix"));
     jb_max_class_addmethod(S_MAX_CLASS,
-        max_jit_k2nect_bang as usize as *mut c_void, cstr!("bang"));
+        max_jit_k2nect_bang as *const () as usize as *mut c_void, cstr!("bang"));
     jb_max_class_addmethod(S_MAX_CLASS,
-        max_jit_k2nect_setup_callback as usize as *mut c_void, cstr!("start"));
+        max_jit_k2nect_setup_callback as *const () as usize as *mut c_void, cstr!("start"));
     jb_max_class_addmethod(S_MAX_CLASS,
-        max_jit_k2nect_stop as usize as *mut c_void, cstr!("stop"));
+        max_jit_k2nect_stop as *const () as usize as *mut c_void, cstr!("stop"));
     jb_max_class_addmethod_cant(S_MAX_CLASS,
-        max_jit_k2nect_assist as usize as *mut c_void, cstr!("assist"));
+        max_jit_k2nect_assist as *const () as usize as *mut c_void, cstr!("assist"));
 
     /* Attributes */
     jb_max_class_attr_long(
@@ -613,7 +646,7 @@ pub unsafe extern "C" fn ext_main(_r: *mut c_void) {
         cstr!("drawto"),
         offset_of!(TMaxJitK2nect, drawto) as i64,
         cstr!("Draw To"),
-        max_jit_k2nect_drawto_set as usize as *mut c_void,
+        max_jit_k2nect_drawto_set as *const () as usize as *mut c_void,
     );
 
     jb_max_class_register_box(S_MAX_CLASS);
@@ -673,7 +706,7 @@ pub unsafe extern "C" fn max_jit_k2nect_new(
     /* Queue element for thread-safe output */
     (*x).qelem = qelem_new(
         x as *mut c_void,
-        max_jit_k2nect_qfn as usize as *mut c_void,
+        max_jit_k2nect_qfn as *const () as usize as *mut c_void,
     );
 
     x

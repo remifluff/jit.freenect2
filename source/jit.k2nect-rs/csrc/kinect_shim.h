@@ -77,6 +77,9 @@ void kinect_register_frames(KinectHandle h, KinectFramePtrs* out, int use_rgb);
 /** Release the current frame set back to libfreenect2 so new frames can queue. */
 void kinect_release_frames(KinectHandle h);
 
+/** Returns 1 if the device appears to have disconnected (no frames for >3 s). */
+int kinect_check_stale(KinectHandle h);
+
 /** Stop and close the device (idempotent). */
 void kinect_close(KinectHandle h);
 
